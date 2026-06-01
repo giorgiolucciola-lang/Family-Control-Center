@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Control Center</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, serif; background: #f5f2ee; min-height: 100vh; }
+  #root { max-width: 480px; margin: 0 auto; min-height: 100vh; }
+  button:active { opacity: 0.8; transform: scale(0.97); }
+  input:focus, select:focus { border-color: #8e44ad !important; outline: none; }
+  input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useCallback, useRef, useEffect } = React;
+
+// ── Storage ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY = "fcc_data_v2";
+
+// Categorie e sottocategorie di default per le spese
+const DEFAULT_EXPENSE_CATS = [
+  { id: "casa",         name: "Casa",          icon: "🏠", subs: ["Affitto/Mutuo","Manutenzione","Arredamento","Elettrodomestici"] },
+  { id: "cibo",         name: "Cibo",           icon: "🍽️", subs: ["Supermercato","Ristorante","Frutteria","Macelleria","Panetteria"] },
+  { id: "trasporti",    name: "Trasporti",      icon: "🚗", subs: ["Carburante","Parcheggio","Mezzi pubblici","Taxi/Uber"] },
+  { id: "salute",       name: "Salute",         icon: "💊", subs: ["Farmacia","Medico","Dentista","Esami"] },
+  { id: "abbigliamento",name: "Abbigliamento",  icon: "👕", subs: ["Adulti","Bambini","Scarpe","Accessori"] },
+  { id: "svago",        name: "Svago",          icon: "🎭", subs: ["Cinema/Teatro","Sport","Vacanze","Hobby"] },
+  { id: "istruzione",   name: "Istruzione",     icon: "📚", subs: ["Libri","Corsi","Scuola","Università"] },
+  { id: "altro",        name: "Altro",          icon: "📦", subs: [] },
+];
+
+// Categorie e sottocategorie di default per la lista spesa
+const DEFAULT_SHOP_CATS = [
+  { id: "alimentari",   name: "Alimentari",    subs: [] },
+  { id: "pulizia",      name: "Pulizia",       subs: [] },
+  { id: "igiene",       name: "Igiene",        subs: [] },
+  { id: "frigo",        name: "Frigo",         subs: [] },
+  { id: "freschissimi", name: "Freschissimi",  subs: [] },
+  { id: "altro",        name: "Altro",         subs: [] },
+];
+
+const BILL_ICONS = {"Affitto":"🏠","Luce":"💡","Gas":"🔥","Acqua":"💧","Internet":"📶","Telefono":"📱","Abbonamento":"📺","Assicurazione":"🛡️","Mutuo":"🏦","Altro":"📄"};
+
+const defaultData = {
+  monthlyIncome: 0,
+  extraIncomes: [],
+  expenses: [],
+  bills: [],
+  shoppingList: [],
+  shoppingPresets: ["Latte","Pane","Uova","Pasta","Riso","Acqua","Frutta","Verdura","Carne","Pesce","Olio","Sale","Zucchero","Caffè","Detersivo","Carta igienica"],
+  expenseCats: DEFAULT_EXPENSE_CATS,
+  shopCats: DEFAULT_SHOP_CATS,
+};
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...defaultData };
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaultData,
+      ...parsed,
+      expenseCats: parsed.expenseCats || DEFAULT_EXPENSE_CATS,
+      shopCats: parsed.shopCats || DEFAULT_SHOP_CATS,
+    };
+  } catch { return { ...defaultData }; }
+}
+function saveData(d) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {}
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const uid = () => Math.random().toString(36).slice(2);
+const fmt = n => "€ " + Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2});
+const MONTHS = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+const DAYS = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
+const monthLabel = ym => { const [y,m] = ym.split("-"); return `${MONTHS[parseInt(m)-1]} ${y}`; };
+const localYMD = (d) => { const dd = d||new Date(); return `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,"0")}-${String(dd.getDate()).padStart(2,"0")}`; };
+const today = () => localYMD();
+const currentYM = () => localYMD().slice(0,7);
+const shiftYM = (ym, dir) => { const [y,m] = ym.split("-").map(Number); const d = new Date(y,m-1+dir,1); return localYMD(d).slice(0,7); };
+
+const todayLabel = () => {
+  const d = new Date();
+  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+// ── SVG Icons ────────────────────────────────────────────────────────────────
+const Ico = {
+  plus:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  trash:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
+  check:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>,
+  edit:    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="15" height="15"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  chevL:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>,
+  chevR:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="20" height="20"><polyline points="9 18 15 12 9 6"/></svg>,
+  dl:      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="15" height="15"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  ul:      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="15" height="15"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+  settings:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="15" height="15"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+  chevD:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="13" height="13"><polyline points="6 9 12 15 18 9"/></svg>,
+  chevU:   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="13" height="13"><polyline points="18 15 12 9 6 15"/></svg>,
+};
+
+// ── Reusable UI ──────────────────────────────────────────────────────────────
+const Card = ({title, accent, children}) => (
+  <div style={{background:"#fff",borderRadius:12,padding:16,boxShadow:"0 2px 12px rgba(0,0,0,.07)",borderTop:`4px solid ${accent}`,marginBottom:16}}>
+    <div style={{fontSize:15,fontWeight:"bold",color:accent,marginBottom:12}}>{title}</div>
+    {children}
+  </div>
+);
+
+const Row = ({label,sub,value,children}) => (
+  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #f0ede9"}}>
+    <div style={{flex:1,minWidth:0}}><div style={{fontSize:14,color:"#333"}}>{label}</div>{sub&&<div style={{fontSize:11,color:"#999",marginTop:1}}>{sub}</div>}</div>
+    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+      <span style={{fontSize:14,fontWeight:600,color:"#222"}}>{value}</span>
+      {children}
+    </div>
+  </div>
+);
+
+const Inp = ({style,...p}) => <input style={{border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:13,background:"#fff",width:"100%",...style}} {...p}/>;
+const Sel = ({style,...p}) => <select style={{border:"1px solid #ddd",borderRadius:6,padding:"7px 8px",fontSize:13,background:"#fff",...style}} {...p}/>;
+const SaveBtn = ({onClick,label,icon}) => <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:4,background:"#2c2c2c",color:"#fff",border:"none",borderRadius:6,padding:"7px 12px",fontSize:12,cursor:"pointer",whiteSpace:"nowrap"}}>{icon||Ico.check}{label||"Salva"}</button>;
+const IcoBtn = ({icon,onClick,color="#666",title}) => <button onClick={onClick} title={title} style={{background:"transparent",border:"none",cursor:"pointer",padding:4,display:"flex",alignItems:"center",color,borderRadius:4}}>{icon}</button>;
+const Empty = ({children}) => <div style={{padding:"20px 0",textAlign:"center",color:"#aaa",fontSize:13,fontStyle:"italic"}}>{children}</div>;
+const Divider = ({children}) => <div style={{margin:"14px 0 8px",fontSize:12,color:"#888"}}>{children}</div>;
+const AddBtn = ({onClick,children}) => <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:6,background:"#f5f2ee",border:"1px dashed #ccc",borderRadius:8,padding:"8px 14px",fontSize:13,cursor:"pointer",marginBottom:8,width:"100%",justifyContent:"center"}}>{children}</button>;
+const FormBox = ({children}) => <div style={{background:"#faf9f7",borderRadius:8,padding:12,marginTop:8,display:"flex",flexDirection:"column",gap:8}}>{children}</div>;
+const FRow = ({children}) => <div style={{display:"flex",gap:8,alignItems:"center"}}>{children}</div>;
+
+// ── Selettore categoria + sottocategoria ─────────────────────────────────────
+function CatSubSel({cats, catVal, subVal, onCat, onSub}) {
+  const cat = cats.find(c => c.name === catVal) || cats[0];
+  return (
+    <FRow>
+      <Sel value={catVal} onChange={e=>{ onCat(e.target.value); onSub(""); }} style={{flex:1}}>
+        {cats.map(c=><option key={c.id}>{c.name}</option>)}
+      </Sel>
+      {cat && cat.subs && cat.subs.length > 0 && (
+        <Sel value={subVal} onChange={e=>onSub(e.target.value)} style={{flex:1}}>
+          <option value="">— Sottocategoria —</option>
+          {cat.subs.map(s=><option key={s}>{s}</option>)}
+        </Sel>
+      )}
+    </FRow>
+  );
+}
+
+// ── APP ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [data, setData] = useState(loadData);
+  const [tab, setTab] = useState("budget");
+  const [viewMonth, setViewMonth] = useState(currentYM());
+  const fileRef = useRef();
+
+  const update = useCallback(fn => {
+    setData(prev => { const next = fn(prev); saveData(next); return next; });
+  }, []);
+
+  // Derived
+  const monthExpenses = data.expenses.filter(e => e.date?.startsWith(viewMonth));
+  const monthBillsPaid = data.bills.filter(b => b.paid && b.month === viewMonth);
+  const monthExtras = data.extraIncomes.filter(e => e.month === viewMonth);
+  const totalIncome = data.monthlyIncome + monthExtras.reduce((s,e) => s+Number(e.amount),0);
+  const totalSpent  = monthExpenses.reduce((s,e) => s+Number(e.amount),0);
+  const totalBills  = monthBillsPaid.reduce((s,b) => s+Number(b.amount),0);
+  const balance     = totalIncome - totalSpent - totalBills;
+
+  const exportData = () => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `fcc-backup-${today()}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        update(() => ({ ...defaultData, ...imported }));
+        alert("✅ Dati importati correttamente!");
+      } catch { alert("❌ File non valido."); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const tabs = [
+    {id:"budget",   label:"Budget",    icon:"💰"},
+    {id:"bills",    label:"Scadenze",  icon:"📅"},
+    {id:"shop",     label:"Spesa",     icon:"🛒"},
+    {id:"settings", label:"Impostaz.", icon:"⚙️"},
+  ];
+
+  return (
+    <div style={{fontFamily:"Georgia,serif",background:"#f5f2ee",minHeight:"100vh"}}>
+      {/* Header */}
+      <header style={{background:"#2c2c2c",padding:"14px 20px 10px",color:"#fff"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+          <div>
+            <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+              <span style={{fontSize:20,fontWeight:"bold"}}>🏡 Family</span>
+              <span style={{fontSize:11,color:"#aaa",letterSpacing:2,textTransform:"uppercase"}}>Control Center</span>
+            </div>
+            <div style={{fontSize:11,color:"#f0c040",marginTop:3,letterSpacing:.5}}>{todayLabel()}</div>
+          </div>
+          <div style={{display:"flex",gap:6,marginTop:2}}>
+            <button onClick={exportData} title="Esporta backup" style={{background:"#3a3a3a",border:"none",color:"#ccc",borderRadius:6,padding:"6px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11}}>
+              {Ico.dl} Backup
+            </button>
+            <button onClick={() => fileRef.current.click()} title="Importa backup" style={{background:"#3a3a3a",border:"none",color:"#ccc",borderRadius:6,padding:"6px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11}}>
+              {Ico.ul} Importa
+            </button>
+            <input ref={fileRef} type="file" accept=".json" style={{display:"none"}} onChange={importData}/>
+          </div>
+        </div>
+        {/* Month navigator */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:20,marginTop:8}}>
+          <button onClick={() => setViewMonth(m => shiftYM(m,-1))} style={{background:"transparent",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",padding:4}}>{Ico.chevL}</button>
+          <span style={{fontSize:16,fontWeight:"bold",minWidth:110,textAlign:"center"}}>{monthLabel(viewMonth)}</span>
+          <button onClick={() => setViewMonth(m => shiftYM(m,+1))} style={{background:"transparent",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",padding:4}}>{Ico.chevR}</button>
+        </div>
+      </header>
+
+      {/* Balance strip */}
+      <div style={{background: balance>=0 ? "linear-gradient(135deg,#1a6b3c,#27ae60)" : "linear-gradient(135deg,#7b1c1c,#c0392b)",padding:"16px 20px",color:"#fff"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+          <span style={{fontSize:11,opacity:.85,textTransform:"uppercase",letterSpacing:1}}>Saldo disponibile</span>
+          <span style={{fontSize:26,fontWeight:"bold",letterSpacing:-1}}>{fmt(balance)}</span>
+        </div>
+        <div style={{display:"flex",gap:16,fontSize:11,opacity:.8,flexWrap:"wrap"}}>
+          <span>Entrate {fmt(totalIncome)}</span>
+          <span>Spese {fmt(totalSpent)}</span>
+          <span>Bollette {fmt(totalBills)}</span>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <nav style={{display:"flex",background:"#2c2c2c",borderBottom:"2px solid #111"}}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"10px 4px",background:"transparent",border:"none",color: tab===t.id?"#fff":"#888",cursor:"pointer",borderBottom: tab===t.id?"3px solid #f0c040":"3px solid transparent",fontSize:11}}>
+            <span style={{fontSize:18}}>{t.icon}</span>
+            <span style={{textTransform:"uppercase",letterSpacing:1,fontSize:9}}>{t.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Content */}
+      <main style={{padding:"16px 12px",maxWidth:480,margin:"0 auto"}}>
+        {tab==="budget"   && <BudgetTab data={data} update={update} viewMonth={viewMonth} monthExpenses={monthExpenses} monthExtras={monthExtras} totalIncome={totalIncome}/>}
+        {tab==="bills"    && <BillsTab  data={data} update={update} viewMonth={viewMonth}/>}
+        {tab==="shop"     && <ShopTab   data={data} update={update}/>}
+        {tab==="settings" && <SettingsTab data={data} update={update}/>}
+      </main>
+    </div>
+  );
+}
+
+// ── BUDGET ───────────────────────────────────────────────────────────────────
+function BudgetTab({data,update,viewMonth,monthExpenses,monthExtras,totalIncome}) {
+  const [editIncome, setEditIncome] = useState(false);
+  const [showExp, setShowExp] = useState(false);
+  const [income, setIncome] = useState(String(data.monthlyIncome||""));
+  const [extra, setExtra] = useState({label:"",amount:""});
+  const [exp, setExp] = useState({label:"",amount:"",category:"",subcategory:"",date:today()});
+  const [expandedCats, setExpandedCats] = useState({});
+
+  const cats = data.expenseCats || DEFAULT_EXPENSE_CATS;
+  const firstCat = cats[0]?.name || "Altro";
+
+  useEffect(() => {
+    if (!exp.category) setExp(p=>({...p,category:firstCat}));
+  }, []);
+
+  const saveIncome = () => { update(d=>({...d,monthlyIncome:Number(income)})); setEditIncome(false); };
+  const addExtra = () => {
+    if(!extra.label||!extra.amount) return;
+    update(d=>({...d,extraIncomes:[...d.extraIncomes,{id:uid(),...extra,amount:Number(extra.amount),month:viewMonth}]}));
+    setExtra({label:"",amount:""});
+  };
+  const delExtra = id => update(d=>({...d,extraIncomes:d.extraIncomes.filter(e=>e.id!==id)}));
+  const addExp = () => {
+    if(!exp.label||!exp.amount) return;
+    update(d=>({...d,expenses:[...d.expenses,{id:uid(),...exp,amount:Number(exp.amount)}]}));
+    setExp({label:"",amount:"",category:firstCat,subcategory:"",date:today()});
+    setShowExp(false);
+  };
+  const delExp = id => update(d=>({...d,expenses:d.expenses.filter(e=>e.id!==id)}));
+
+  const toggleCat = cat => setExpandedCats(p=>({...p,[cat]:!p[cat]}));
+
+  const byCategory = cats.map(c=>({
+    cat: c.name,
+    icon: c.icon,
+    items: monthExpenses.filter(e=>e.category===c.name),
+    total: monthExpenses.filter(e=>e.category===c.name).reduce((s,e)=>s+Number(e.amount),0)
+  })).filter(g=>g.items.length>0);
+
+  return (<>
+    <Card title="💰 Entrate" accent="#27ae60">
+      <Row label="Stipendio fisso" value={fmt(data.monthlyIncome)}>
+        <IcoBtn icon={Ico.edit} onClick={()=>setEditIncome(!editIncome)}/>
+      </Row>
+      {editIncome && <div style={{display:"flex",gap:6,marginTop:8}}>
+        <Inp type="number" placeholder="€" value={income} onChange={e=>setIncome(e.target.value)} style={{flex:1}}/>
+        <SaveBtn onClick={saveIncome}/>
+      </div>}
+      {monthExtras.map(e=>(
+        <Row key={e.id} label={e.label} value={fmt(e.amount)}>
+          <IcoBtn icon={Ico.trash} onClick={()=>delExtra(e.id)} color="#e74c3c"/>
+        </Row>
+      ))}
+      <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+        <Inp placeholder="Entrata extra…" value={extra.label} onChange={e=>setExtra(p=>({...p,label:e.target.value}))} style={{flex:2,minWidth:120}}/>
+        <Inp type="number" placeholder="€" value={extra.amount} onChange={e=>setExtra(p=>({...p,amount:e.target.value}))} style={{flex:1,minWidth:70}}/>
+        <SaveBtn icon={Ico.plus} onClick={addExtra} label="Aggiungi"/>
+      </div>
+      <div style={{marginTop:10,fontSize:13,color:"#555",textAlign:"right"}}>Totale entrate: <strong>{fmt(totalIncome)}</strong></div>
+    </Card>
+
+    <Card title="📤 Spese" accent="#e74c3c">
+      <AddBtn onClick={()=>setShowExp(!showExp)}>{Ico.plus} Aggiungi spesa</AddBtn>
+      {showExp && <FormBox>
+        <Inp placeholder="Descrizione (es. Frutteria)" value={exp.label} onChange={e=>setExp(p=>({...p,label:e.target.value}))}/>
+        <FRow>
+          <Inp type="number" placeholder="€" value={exp.amount} onChange={e=>setExp(p=>({...p,amount:e.target.value}))} style={{flex:1}}/>
+          <Inp type="date" value={exp.date} onChange={e=>setExp(p=>({...p,date:e.target.value}))} style={{flex:1}}/>
+        </FRow>
+        <CatSubSel
+          cats={cats}
+          catVal={exp.category || firstCat}
+          subVal={exp.subcategory}
+          onCat={v=>setExp(p=>({...p,category:v,subcategory:""}))}
+          onSub={v=>setExp(p=>({...p,subcategory:v}))}
+        />
+        <SaveBtn onClick={addExp} label="Salva spesa"/>
+      </FormBox>}
+
+      {byCategory.length===0 && <Empty>Nessuna spesa questo mese</Empty>}
+      {byCategory.map(g=>{
+        const expanded = expandedCats[g.cat] !== false; // default aperto
+        // raggruppa per sottocategoria
+        const bySub = {};
+        g.items.forEach(e=>{
+          const sub = e.subcategory || "—";
+          if(!bySub[sub]) bySub[sub]=[];
+          bySub[sub].push(e);
+        });
+        const hasSubs = Object.keys(bySub).some(s=>s!=="—") || Object.keys(bySub).length>1;
+
+        return (
+          <div key={g.cat} style={{marginTop:8}}>
+            <div
+              onClick={()=>toggleCat(g.cat)}
+              style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,fontWeight:"bold",color:"#555",textTransform:"uppercase",letterSpacing:1,marginBottom:4,paddingBottom:4,borderBottom:"2px solid #eee",cursor:"pointer"}}
+            >
+              <span>{g.icon} {g.cat} <span style={{color:"#aaa",fontWeight:"normal"}}>({g.items.length})</span></span>
+              <span style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{color:"#e74c3c"}}>{fmt(g.total)}</span>
+                {expanded ? Ico.chevU : Ico.chevD}
+              </span>
+            </div>
+            {expanded && (hasSubs
+              ? Object.entries(bySub).map(([sub,items])=>(
+                  <div key={sub} style={{marginBottom:6}}>
+                    {sub!=="—"&&<div style={{fontSize:10,color:"#aaa",fontStyle:"italic",padding:"2px 0 2px 6px",borderLeft:"2px solid #f0ede9"}}>{sub}</div>}
+                    {items.map(e=>(
+                      <Row key={e.id} label={e.label} sub={e.date} value={fmt(e.amount)}>
+                        <IcoBtn icon={Ico.trash} onClick={()=>delExp(e.id)} color="#e74c3c"/>
+                      </Row>
+                    ))}
+                  </div>
+                ))
+              : g.items.map(e=>(
+                  <Row key={e.id} label={e.label} sub={e.date} value={fmt(e.amount)}>
+                    <IcoBtn icon={Ico.trash} onClick={()=>delExp(e.id)} color="#e74c3c"/>
+                  </Row>
+                ))
+            )}
+          </div>
+        );
+      })}
+      {byCategory.length>0 && (
+        <div style={{marginTop:12,paddingTop:8,borderTop:"1px solid #eee",fontSize:13,color:"#555",textAlign:"right"}}>
+          Totale spese: <strong style={{color:"#e74c3c"}}>{fmt(monthExpenses.reduce((s,e)=>s+Number(e.amount),0))}</strong>
+        </div>
+      )}
+    </Card>
+  </>);
+}
+
+// ── BILLS ────────────────────────────────────────────────────────────────────
+function BillRow({b, onToggle, onDel}) {
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #f0ede9",...(b.urgent?{background:"#fff9e6",borderRadius:8,padding:"8px",borderLeft:"3px solid #f39c12"}:{})}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:20}}>{BILL_ICONS[b.type]||"📄"}</span>
+        <div>
+          <div style={{fontSize:14,fontWeight:600}}>
+            {b.label}
+            {b.urgent&&<span style={{fontSize:10,background:"#f39c12",color:"#fff",borderRadius:4,padding:"2px 5px",marginLeft:6}}>⚠️ In scadenza</span>}
+          </div>
+          <div style={{fontSize:11,color:"#999",marginTop:2}}>
+            {b.variable?(b.dueDate||"Data da definire"):`Ogni ${b.dayOfMonth} del mese`}
+          </div>
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:14,fontWeight:"bold"}}>{fmt(b.amount)}</span>
+        <button onClick={()=>onToggle(b.id)} style={{background:b.isPaid?"#27ae60":"#2c2c2c",color:"#fff",border:"none",borderRadius:6,padding:"5px 10px",fontSize:11,cursor:"pointer"}}>
+          {b.isPaid?"✓ Pagato":"Paga"}
+        </button>
+        <IcoBtn icon={Ico.trash} onClick={()=>onDel(b.id)} color="#e74c3c"/>
+      </div>
+    </div>
+  );
+}
+
+function BillsTab({data,update,viewMonth}) {
+  const [showAdd,setShowAdd] = useState(false);
+  const [form,setForm] = useState({label:"",amount:"",type:"Altro",dayOfMonth:"",variable:false,dueDate:""});
+
+  const addBill = () => {
+    if(!form.label||!form.amount) return;
+    update(d=>({...d,bills:[...d.bills,{id:uid(),...form,amount:Number(form.amount),paid:false,month:null}]}));
+    setForm({label:"",amount:"",type:"Altro",dayOfMonth:"",variable:false,dueDate:""});
+  };
+  const togglePaid = id => {
+    update(d=>({...d,bills:d.bills.map(b=>b.id===id?{...b,paid:!b.paid,month:!b.paid?viewMonth:null}:b)}));
+  };
+  const delBill = id => update(d=>({...d,bills:d.bills.filter(b=>b.id!==id)}));
+
+  const todayNum = new Date().getDate();
+  const todayFull = today();
+
+  const withStatus = data.bills.map(b=>{
+    const isPaid = b.paid && b.month===viewMonth;
+    let urgent = false;
+    if(!isPaid){
+      if(!b.variable&&b.dayOfMonth){ const diff=Number(b.dayOfMonth)-todayNum; urgent=diff>=0&&diff<=5; }
+      else if(b.dueDate){ const diff=(new Date(b.dueDate)-new Date(todayFull))/86400000; urgent=diff>=0&&diff<=5; }
+    }
+    return {...b,isPaid,urgent};
+  });
+
+  const unpaid = withStatus.filter(b=>!b.isPaid);
+  const paid   = withStatus.filter(b=>b.isPaid);
+  const totalUnpaid = unpaid.reduce((s,b)=>s+Number(b.amount),0);
+  const totalPaid   = paid.reduce((s,b)=>s+Number(b.amount),0);
+
+  return (
+    <Card title="📅 Scadenze" accent="#8e44ad">
+      <AddBtn onClick={()=>setShowAdd(!showAdd)}>{Ico.plus} Aggiungi scadenza</AddBtn>
+      {showAdd && <FormBox>
+        <FRow>
+          <Sel value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} style={{flex:1}}>
+            {Object.keys(BILL_ICONS).map(k=><option key={k}>{k}</option>)}
+          </Sel>
+          <Inp placeholder="Nome bolletta" value={form.label} onChange={e=>setForm(p=>({...p,label:e.target.value}))} style={{flex:2}}/>
+        </FRow>
+        <FRow>
+          <Inp type="number" placeholder="Importo €" value={form.amount} onChange={e=>setForm(p=>({...p,amount:e.target.value}))} style={{flex:1}}/>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#555",whiteSpace:"nowrap"}}>
+            <input type="checkbox" checked={form.variable} onChange={e=>setForm(p=>({...p,variable:e.target.checked}))}/>
+            Data variabile
+          </label>
+        </FRow>
+        {!form.variable
+          ? <Inp type="number" placeholder="Giorno del mese (es. 15)" value={form.dayOfMonth} onChange={e=>setForm(p=>({...p,dayOfMonth:e.target.value}))}/>
+          : <Inp type="date" value={form.dueDate} onChange={e=>setForm(p=>({...p,dueDate:e.target.value}))}/>
+        }
+        <SaveBtn onClick={addBill} label="Salva scadenza"/>
+      </FormBox>}
+
+      {unpaid.length===0&&paid.length===0&&<Empty>Nessuna scadenza configurata</Empty>}
+      {unpaid.length===0&&paid.length>0&&<Empty>🎉 Tutto pagato questo mese!</Empty>}
+      {unpaid.map(b=><BillRow key={b.id} b={b} onToggle={togglePaid} onDel={delBill}/>)}
+      {unpaid.length>0&&<div style={{marginTop:10,fontSize:13,color:"#555",textAlign:"right"}}>Da pagare: <strong>{fmt(totalUnpaid)}</strong></div>}
+
+      {paid.length>0&&<>
+        <Divider>✅ Pagati questo mese</Divider>
+        {paid.map(b=><div key={b.id} style={{opacity:.6}}><BillRow b={b} onToggle={togglePaid} onDel={delBill}/></div>)}
+        <div style={{marginTop:8,fontSize:13,color:"#555",textAlign:"right"}}>Pagati: <strong>{fmt(totalPaid)}</strong></div>
+      </>}
+    </Card>
+  );
+}
+
+// ── SHOP ─────────────────────────────────────────────────────────────────────
+function ShopTab({data,update}) {
+  const [showPresets,setShowPresets] = useState(false);
+  const [newItem,setNewItem] = useState({label:"",qty:"1",category:"",subcategory:""});
+
+  const shopCats = data.shopCats || DEFAULT_SHOP_CATS;
+  const firstShopCat = shopCats[0]?.name || "Alimentari";
+
+  const addItem = () => {
+    if(!newItem.label) return;
+    const cat = newItem.category || firstShopCat;
+    update(d=>({...d,shoppingList:[...d.shoppingList,{id:uid(),...newItem,category:cat,checked:false}]}));
+    setNewItem({label:"",qty:"1",category:cat,subcategory:""});
+  };
+  const addPreset = label => {
+    if(data.shoppingList.find(i=>i.label===label&&!i.checked)) return;
+    update(d=>({...d,shoppingList:[...d.shoppingList,{id:uid(),label,qty:"1",category:firstShopCat,subcategory:"",checked:false}]}));
+  };
+  const toggle = id => update(d=>({...d,shoppingList:d.shoppingList.map(i=>i.id===id?{...i,checked:!i.checked}:i)}));
+  const del    = id => update(d=>({...d,shoppingList:d.shoppingList.filter(i=>i.id!==id)}));
+  const clearDone = () => update(d=>({...d,shoppingList:d.shoppingList.filter(i=>!i.checked)}));
+
+  const unchecked = data.shoppingList.filter(i=>!i.checked);
+  const checked   = data.shoppingList.filter(i=>i.checked);
+  const byCategory = shopCats.map(c=>({
+    cat:c.name,
+    items:unchecked.filter(i=>i.category===c.name)
+  })).filter(g=>g.items.length>0);
+
+  return (
+    <Card title="🛒 Lista della Spesa" accent="#e67e22">
+      <FormBox>
+        <FRow>
+          <Inp placeholder="Articolo…" value={newItem.label} onChange={e=>setNewItem(p=>({...p,label:e.target.value}))} style={{flex:3}}
+            onKeyDown={e=>e.key==="Enter"&&addItem()}/>
+          <Inp type="number" placeholder="Qtà" value={newItem.qty} onChange={e=>setNewItem(p=>({...p,qty:e.target.value}))} style={{flex:1,minWidth:50}}/>
+        </FRow>
+        <CatSubSel
+          cats={shopCats}
+          catVal={newItem.category || firstShopCat}
+          subVal={newItem.subcategory}
+          onCat={v=>setNewItem(p=>({...p,category:v,subcategory:""}))}
+          onSub={v=>setNewItem(p=>({...p,subcategory:v}))}
+        />
+        <SaveBtn icon={Ico.plus} onClick={addItem} label="Aggiungi"/>
+      </FormBox>
+
+      <button onClick={()=>setShowPresets(!showPresets)} style={{background:"transparent",border:"none",color:"#888",fontSize:12,cursor:"pointer",padding:"6px 0",textAlign:"left"}}>
+        {showPresets?"▲":"▼"} Aggiungi da lista rapida
+      </button>
+      {showPresets&&<div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+        {data.shoppingPresets.map(p=>(
+          <button key={p} onClick={()=>addPreset(p)} style={{background:"#f5f2ee",border:"1px solid #ddd",borderRadius:20,padding:"4px 12px",fontSize:12,cursor:"pointer",color:"#444"}}>{p}</button>
+        ))}
+      </div>}
+
+      {unchecked.length===0&&checked.length===0&&<Empty>La lista è vuota</Empty>}
+
+      {byCategory.map(g=>(
+        <div key={g.cat} style={{marginTop:8}}>
+          <div style={{fontSize:11,fontWeight:"bold",color:"#888",textTransform:"uppercase",letterSpacing:1,marginBottom:4,borderBottom:"1px solid #eee",paddingBottom:2}}>{g.cat}</div>
+          {g.items.map(item=>(
+            <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #f0ede9"}}>
+              <button onClick={()=>toggle(item.id)} style={{width:24,height:24,borderRadius:6,border:"2px solid #ccc",background:"#fff",cursor:"pointer",flexShrink:0}}></button>
+              <div style={{flex:1}}>
+                <span style={{fontSize:14,color:"#333"}}>{item.qty>1?`${item.qty}× `:""}{item.label}</span>
+                {item.subcategory&&<div style={{fontSize:10,color:"#bbb"}}>{item.subcategory}</div>}
+              </div>
+              <IcoBtn icon={Ico.trash} onClick={()=>del(item.id)} color="#e74c3c"/>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {checked.length>0&&<>
+        <Divider>✅ Nel carrello ({checked.length})</Divider>
+        {checked.map(item=>(
+          <div key={item.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #f0ede9",opacity:.5}}>
+            <button onClick={()=>toggle(item.id)} style={{width:24,height:24,borderRadius:6,border:"2px solid #27ae60",background:"#27ae60",cursor:"pointer",flexShrink:0,color:"#fff",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>✓</button>
+            <span style={{flex:1,fontSize:14,textDecoration:"line-through",color:"#333"}}>{item.label}</span>
+            <IcoBtn icon={Ico.trash} onClick={()=>del(item.id)} color="#e74c3c"/>
+          </div>
+        ))}
+        <button onClick={clearDone} style={{marginTop:10,width:"100%",background:"#fdf0f0",color:"#e74c3c",border:"1px solid #f5c6c6",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>
+          🗑️ Svuota carrello
+        </button>
+      </>}
+    </Card>
+  );
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+function SettingsTab({data, update}) {
+  return (
+    <div>
+      <CatManager
+        title="📤 Categorie Spese"
+        accent="#e74c3c"
+        cats={data.expenseCats || DEFAULT_EXPENSE_CATS}
+        onChange={newCats => update(d=>({...d,expenseCats:newCats}))}
+        showIcon={true}
+      />
+      <CatManager
+        title="🛒 Categorie Lista Spesa"
+        accent="#e67e22"
+        cats={data.shopCats || DEFAULT_SHOP_CATS}
+        onChange={newCats => update(d=>({...d,shopCats:newCats}))}
+        showIcon={false}
+      />
+      <PresetManager data={data} update={update}/>
+    </div>
+  );
+}
+
+// Gestione categorie e sottocategorie
+function CatManager({title, accent, cats, onChange, showIcon}) {
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatIcon, setNewCatIcon] = useState("📦");
+  const [expandedCat, setExpandedCat] = useState(null);
+  const [newSubName, setNewSubName] = useState("");
+
+  const addCat = () => {
+    if(!newCatName.trim()) return;
+    const newCat = { id: uid(), name: newCatName.trim(), icon: showIcon ? newCatIcon : "", subs: [] };
+    onChange([...cats, newCat]);
+    setNewCatName(""); setNewCatIcon("📦");
+  };
+
+  const delCat = id => {
+    if(cats.length <= 1) { alert("Devi avere almeno una categoria."); return; }
+    onChange(cats.filter(c=>c.id!==id));
+  };
+
+  const addSub = (catId) => {
+    if(!newSubName.trim()) return;
+    onChange(cats.map(c=>c.id===catId ? {...c,subs:[...(c.subs||[]),newSubName.trim()]} : c));
+    setNewSubName("");
+  };
+
+  const delSub = (catId, sub) => {
+    onChange(cats.map(c=>c.id===catId ? {...c,subs:(c.subs||[]).filter(s=>s!==sub)} : c));
+  };
+
+  return (
+    <Card title={title} accent={accent}>
+      {cats.map(c=>(
+        <div key={c.id} style={{marginBottom:6}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f0ede9"}}>
+            <button
+              onClick={()=>setExpandedCat(expandedCat===c.id?null:c.id)}
+              style={{background:"transparent",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#333",flex:1,textAlign:"left"}}
+            >
+              {showIcon&&<span>{c.icon}</span>}
+              <span style={{fontWeight:600}}>{c.name}</span>
+              <span style={{fontSize:10,color:"#aaa"}}>({(c.subs||[]).length} sottoc.)</span>
+              <span style={{color:"#aaa",marginLeft:4}}>{expandedCat===c.id?Ico.chevU:Ico.chevD}</span>
+            </button>
+            <IcoBtn icon={Ico.trash} onClick={()=>delCat(c.id)} color="#e74c3c" title="Elimina categoria"/>
+          </div>
+
+          {expandedCat===c.id && (
+            <div style={{background:"#faf9f7",borderRadius:8,padding:10,marginTop:4}}>
+              {(c.subs||[]).length===0 && <div style={{fontSize:12,color:"#bbb",fontStyle:"italic",marginBottom:6}}>Nessuna sottocategoria</div>}
+              {(c.subs||[]).map(s=>(
+                <div key={s} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"3px 0"}}>
+                  <span style={{fontSize:12,color:"#555"}}>• {s}</span>
+                  <IcoBtn icon={Ico.trash} onClick={()=>delSub(c.id,s)} color="#e74c3c"/>
+                </div>
+              ))}
+              <FRow style={{marginTop:6}}>
+                <Inp placeholder="Nuova sottocategoria…" value={newSubName} onChange={e=>setNewSubName(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&addSub(c.id)} style={{flex:1,fontSize:12}}/>
+                <SaveBtn icon={Ico.plus} onClick={()=>addSub(c.id)} label=""/>
+              </FRow>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div style={{marginTop:10,borderTop:"1px dashed #ddd",paddingTop:10}}>
+        <div style={{fontSize:12,color:"#888",marginBottom:6}}>Aggiungi categoria:</div>
+        <FRow>
+          {showIcon && <Inp placeholder="🏷️" value={newCatIcon} onChange={e=>setNewCatIcon(e.target.value)} style={{width:44,textAlign:"center",padding:"7px 4px"}}/>}
+          <Inp placeholder="Nome categoria…" value={newCatName} onChange={e=>setNewCatName(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&addCat()} style={{flex:1}}/>
+          <SaveBtn icon={Ico.plus} onClick={addCat} label=""/>
+        </FRow>
+      </div>
+    </Card>
+  );
+}
+
+// Gestione preset lista spesa
+function PresetManager({data, update}) {
+  const [newPreset, setNewPreset] = useState("");
+
+  const addPreset = () => {
+    if(!newPreset.trim()) return;
+    if(data.shoppingPresets.includes(newPreset.trim())) return;
+    update(d=>({...d,shoppingPresets:[...d.shoppingPresets,newPreset.trim()]}));
+    setNewPreset("");
+  };
+  const delPreset = p => update(d=>({...d,shoppingPresets:d.shoppingPresets.filter(x=>x!==p)}));
+
+  return (
+    <Card title="⚡ Lista rapida spesa" accent="#e67e22">
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+        {data.shoppingPresets.map(p=>(
+          <div key={p} style={{display:"flex",alignItems:"center",gap:4,background:"#f5f2ee",border:"1px solid #ddd",borderRadius:20,padding:"4px 10px",fontSize:12}}>
+            <span>{p}</span>
+            <button onClick={()=>delPreset(p)} style={{background:"transparent",border:"none",cursor:"pointer",color:"#e74c3c",padding:0,display:"flex",alignItems:"center",fontSize:12}}>✕</button>
+          </div>
+        ))}
+      </div>
+      <FRow>
+        <Inp placeholder="Nuovo articolo rapido…" value={newPreset} onChange={e=>setNewPreset(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&addPreset()} style={{flex:1}}/>
+        <SaveBtn icon={Ico.plus} onClick={addPreset} label=""/>
+      </FRow>
+    </Card>
+  );
+}
+
+ReactDOM.render(<App/>, document.getElementById("root"));
+</script>
+</body>
+</html>
