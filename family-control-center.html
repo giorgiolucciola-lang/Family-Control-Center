@@ -25,7 +25,6 @@ const { useState, useCallback, useRef, useEffect } = React;
 // ── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "fcc_data_v2";
 
-// Categorie e sottocategorie di default per le spese
 const DEFAULT_EXPENSE_CATS = [
   { id: "casa",         name: "Casa",          icon: "🏠", subs: ["Affitto/Mutuo","Manutenzione","Arredamento","Elettrodomestici"] },
   { id: "cibo",         name: "Cibo",           icon: "🍽️", subs: ["Supermercato","Ristorante","Frutteria","Macelleria","Panetteria"] },
@@ -37,7 +36,6 @@ const DEFAULT_EXPENSE_CATS = [
   { id: "altro",        name: "Altro",          icon: "📦", subs: [] },
 ];
 
-// Categorie e sottocategorie di default per la lista spesa
 const DEFAULT_SHOP_CATS = [
   { id: "alimentari",   name: "Alimentari",    subs: [] },
   { id: "pulizia",      name: "Pulizia",       subs: [] },
@@ -80,15 +78,16 @@ function saveData(d) {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2);
 const fmt = n => "€ " + Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2});
-const MONTHS = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+const MONTHS = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+const MONTHS_SHORT = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
 const DAYS = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
-const monthLabel = ym => { const [y,m] = ym.split("-"); return `${MONTHS[parseInt(m)-1]} ${y}`; };
+const monthLabel = ym => { const [y,m] = ym.split("-"); return `${MONTHS_SHORT[parseInt(m)-1]} ${y}`; };
 const localYMD = (d) => { const dd = d||new Date(); return `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,"0")}-${String(dd.getDate()).padStart(2,"0")}`; };
 const today = () => localYMD();
 const currentYM = () => localYMD().slice(0,7);
 const shiftYM = (ym, dir) => { const [y,m] = ym.split("-").map(Number); const d = new Date(y,m-1+dir,1); return localYMD(d).slice(0,7); };
 
-const todayLabel = () => {
+const todayFullLabel = () => {
   const d = new Date();
   return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 };
@@ -136,7 +135,6 @@ const AddBtn = ({onClick,children}) => <button onClick={onClick} style={{display
 const FormBox = ({children}) => <div style={{background:"#faf9f7",borderRadius:8,padding:12,marginTop:8,display:"flex",flexDirection:"column",gap:8}}>{children}</div>;
 const FRow = ({children}) => <div style={{display:"flex",gap:8,alignItems:"center"}}>{children}</div>;
 
-// ── Selettore categoria + sottocategoria ─────────────────────────────────────
 function CatSubSel({cats, catVal, subVal, onCat, onSub}) {
   const cat = cats.find(c => c.name === catVal) || cats[0];
   return (
@@ -165,7 +163,6 @@ function App() {
     setData(prev => { const next = fn(prev); saveData(next); return next; });
   }, []);
 
-  // Derived
   const monthExpenses = data.expenses.filter(e => e.date?.startsWith(viewMonth));
   const monthBillsPaid = data.bills.filter(b => b.paid && b.month === viewMonth);
   const monthExtras = data.extraIncomes.filter(e => e.month === viewMonth);
@@ -207,16 +204,14 @@ function App() {
   return (
     <div style={{fontFamily:"Georgia,serif",background:"#f5f2ee",minHeight:"100vh"}}>
       {/* Header */}
-      <header style={{background:"#2c2c2c",padding:"14px 20px 10px",color:"#fff"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-          <div>
-            <div style={{display:"flex",alignItems:"baseline",gap:8}}>
-              <span style={{fontSize:20,fontWeight:"bold"}}>🏡 Family</span>
-              <span style={{fontSize:11,color:"#aaa",letterSpacing:2,textTransform:"uppercase"}}>Control Center</span>
-            </div>
-            <div style={{fontSize:11,color:"#f0c040",marginTop:3,letterSpacing:.5}}>{todayLabel()}</div>
+      <header style={{background:"#2c2c2c",padding:"12px 16px 10px",color:"#fff"}}>
+        {/* Riga 1: titolo a sinistra, backup a destra */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+            <span style={{fontSize:18,fontWeight:"bold"}}>🏡 Family</span>
+            <span style={{fontSize:10,color:"#aaa",letterSpacing:2,textTransform:"uppercase"}}>Control Center</span>
           </div>
-          <div style={{display:"flex",gap:6,marginTop:2}}>
+          <div style={{display:"flex",gap:6}}>
             <button onClick={exportData} title="Esporta backup" style={{background:"#3a3a3a",border:"none",color:"#ccc",borderRadius:6,padding:"6px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontSize:11}}>
               {Ico.dl} Backup
             </button>
@@ -226,10 +221,16 @@ function App() {
             <input ref={fileRef} type="file" accept=".json" style={{display:"none"}} onChange={importData}/>
           </div>
         </div>
-        {/* Month navigator */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:20,marginTop:8}}>
+
+        {/* Riga 2: data completa centrata */}
+        <div style={{textAlign:"center",marginBottom:8}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:"#f0c040",letterSpacing:.5}}>{todayFullLabel()}</div>
+        </div>
+
+        {/* Riga 3: navigatore mese centrato */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:20}}>
           <button onClick={() => setViewMonth(m => shiftYM(m,-1))} style={{background:"transparent",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",padding:4}}>{Ico.chevL}</button>
-          <span style={{fontSize:16,fontWeight:"bold",minWidth:110,textAlign:"center"}}>{monthLabel(viewMonth)}</span>
+          <span style={{fontSize:15,fontWeight:"bold",minWidth:110,textAlign:"center",color:"#ddd"}}>{monthLabel(viewMonth)}</span>
           <button onClick={() => setViewMonth(m => shiftYM(m,+1))} style={{background:"transparent",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",padding:4}}>{Ico.chevR}</button>
         </div>
       </header>
@@ -350,8 +351,7 @@ function BudgetTab({data,update,viewMonth,monthExpenses,monthExtras,totalIncome}
 
       {byCategory.length===0 && <Empty>Nessuna spesa questo mese</Empty>}
       {byCategory.map(g=>{
-        const expanded = expandedCats[g.cat] !== false; // default aperto
-        // raggruppa per sottocategoria
+        const expanded = expandedCats[g.cat] !== false;
         const bySub = {};
         g.items.forEach(e=>{
           const sub = e.subcategory || "—";
@@ -612,7 +612,6 @@ function SettingsTab({data, update}) {
   );
 }
 
-// Gestione categorie e sottocategorie
 function CatManager({title, accent, cats, onChange, showIcon}) {
   const [newCatName, setNewCatName] = useState("");
   const [newCatIcon, setNewCatIcon] = useState("📦");
@@ -690,7 +689,6 @@ function CatManager({title, accent, cats, onChange, showIcon}) {
   );
 }
 
-// Gestione preset lista spesa
 function PresetManager({data, update}) {
   const [newPreset, setNewPreset] = useState("");
 
