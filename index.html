@@ -175,7 +175,7 @@ let ui = {
 // ── Google Drive Sync ─────────────────────────────────────────────────────────
 function getClientId() {
   // Client ID injected at build time
-  return window.GCC_CLIENT_ID || "";
+  return CLIENT_ID;
 }
 
 function startGoogleLogin() {
