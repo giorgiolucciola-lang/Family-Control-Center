@@ -97,6 +97,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
 .login-sub{font-size:13px;color:#888;line-height:1.6;max-width:280px}
 .login-btn{background:#4285f4;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;cursor:pointer;font-family:Georgia,serif;display:flex;align-items:center;gap:8px}
 </style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="app"></div>
@@ -181,10 +182,28 @@ function getClientId() {
 function startGoogleLogin() {
   const clientId = getClientId();
   if (!clientId) { alert("Client ID Google non configurato."); return; }
-  const redirectUri = encodeURIComponent(location.origin + location.pathname);
-  const scope = encodeURIComponent(SCOPES);
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
-  location.href = url;
+  // Use GIS tokenClient for better mobile compatibility
+  if (window.google && window.google.accounts) {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: SCOPES,
+      callback: (response) => {
+        if (response.access_token) {
+          accessToken = response.access_token;
+          localStorage.setItem("fcc_gtoken", response.access_token);
+          render();
+          syncFromDrive();
+        }
+      },
+    });
+    tokenClient.requestAccessToken({prompt: "select_account"});
+  } else {
+    // Fallback: redirect flow
+    const redirectUri = encodeURIComponent(location.origin + location.pathname);
+    const scope = encodeURIComponent(SCOPES);
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
+    location.href = url;
+  }
 }
 
 function handleOAuthCallback() {
