@@ -85,31 +85,24 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
 .add-cat-section{margin-top:10px;border-top:1px dashed #ddd;padding-top:10px}
 .add-cat-label{font-size:12px;color:#888;margin-bottom:6px}
 .opacity-60{opacity:.6}
-
-/* Sync banner */
-.sync-banner{background:#1a6b3c;color:#fff;text-align:center;padding:6px;font-size:11px;letter-spacing:.5px}
-.sync-banner.err{background:#c0392b}
-.sync-banner.warn{background:#e67e22}
-
-/* Login screen */
-.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:30px;text-align:center;gap:16px}
+.login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;padding:30px;text-align:center;gap:16px}
 .login-title{font-size:22px;font-weight:bold;color:#2c2c2c}
 .login-sub{font-size:13px;color:#888;line-height:1.6;max-width:280px}
-.login-btn{background:#4285f4;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;cursor:pointer;font-family:Georgia,serif;display:flex;align-items:center;gap:8px}
+.login-btn{background:#4285f4;color:#fff;border:none;border-radius:8px;padding:14px 28px;font-size:15px;cursor:pointer;font-family:Georgia,serif;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(66,133,244,.3)}
+.login-skip{background:transparent;border:none;color:#aaa;font-size:12px;cursor:pointer;margin-top:4px;font-family:Georgia,serif}
 </style>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <div id="app"></div>
-
 <script>
-// ── Google OAuth config ───────────────────────────────────────────────────────
-const CLIENT_ID = "311934534172-4npn7vbc823ppsbf25fr7rch2dedeult.apps.googleusercontent.com"; // sostituito a runtime
+// ── Config ────────────────────────────────────────────────────────────────────
+const CLIENT_ID = "311934534172-4npn7vbc823ppsbf25fr7rch2dedeult.apps.googleusercontent.com";
+const WORKER_URL = "https://fcc-oauth.giorgio-lucciola.workers.dev";
+const REDIRECT_URI = "https://giorgiolucciola-lang.github.io/Family-Control-Center/";
 const SCOPES = "https://www.googleapis.com/auth/drive.appdata";
 const DRIVE_FILE_NAME = "fcc_data_v2.json";
 
-// ── Storage & Defaults ────────────────────────────────────────────────────────
-const STORAGE_KEY = "fcc_data_v2";
+// ── Defaults ──────────────────────────────────────────────────────────────────
 const DEFAULT_EXPENSE_CATS = [
   {id:"casa",name:"Casa",icon:"🏠",subs:["Affitto/Mutuo","Manutenzione","Arredamento","Elettrodomestici"]},
   {id:"cibo",name:"Cibo",icon:"🍽️",subs:["Supermercato","Ristorante","Frutteria","Macelleria","Panetteria"]},
@@ -134,18 +127,6 @@ const defaultData = {
   expenseCats:DEFAULT_EXPENSE_CATS,shopCats:DEFAULT_SHOP_CATS,
 };
 
-function loadLocal() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return JSON.parse(JSON.stringify(defaultData));
-    const p = JSON.parse(raw);
-    return {...JSON.parse(JSON.stringify(defaultData)),...p,
-      expenseCats:p.expenseCats||DEFAULT_EXPENSE_CATS,
-      shopCats:p.shopCats||DEFAULT_SHOP_CATS};
-  } catch { return JSON.parse(JSON.stringify(defaultData)); }
-}
-function saveLocal(d) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {} }
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2);
 const fmt = n => "€ " + Number(n||0).toLocaleString("it-IT",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -159,13 +140,28 @@ const el = (tag,cls,html) => { const e=document.createElement(tag); if(cls) e.cl
 const inp = (type,ph,val,style) => { const i=document.createElement("input"); i.type=type; i.placeholder=ph||""; i.value=val||""; if(style) i.style.cssText=style; return i; };
 const sel = (opts,val,style) => { const s=document.createElement("select"); if(style) s.style.cssText=style; opts.forEach(o=>{ const op=document.createElement("option"); op.value=o; op.textContent=o; if(o===val) op.selected=true; s.appendChild(op); }); return s; };
 
+// ── Local Storage ─────────────────────────────────────────────────────────────
+const STORAGE_KEY = "fcc_data_v2";
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return JSON.parse(JSON.stringify(defaultData));
+    const p = JSON.parse(raw);
+    return {...JSON.parse(JSON.stringify(defaultData)),...p,
+      expenseCats:p.expenseCats||DEFAULT_EXPENSE_CATS,
+      shopCats:p.shopCats||DEFAULT_SHOP_CATS};
+  } catch { return JSON.parse(JSON.stringify(defaultData)); }
+}
+function saveLocal(d) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {} }
+
 // ── App State ─────────────────────────────────────────────────────────────────
 let data = loadLocal();
 let currentTab = "budget";
 let viewMonth = currentYM();
-let accessToken = localStorage.getItem("fcc_gtoken") || null;
+let accessToken = localStorage.getItem("fcc_access_token") || null;
+let refreshToken = localStorage.getItem("fcc_refresh_token") || null;
 let driveFileId = localStorage.getItem("fcc_gfile") || null;
-let syncStatus = "idle"; // idle | syncing | ok | error
+let syncStatus = "idle";
 let lastSyncTime = localStorage.getItem("fcc_gsync") || null;
 let syncTimeout = null;
 let ui = {
@@ -173,103 +169,94 @@ let ui = {
   expandedExpCats:{},expandedSettingsCat:null,expandedShopSettingsCat:null,
 };
 
-// ── Google Drive Sync ─────────────────────────────────────────────────────────
-function getClientId() {
-  // Client ID injected at build time
-  return CLIENT_ID;
+// ── OAuth (Authorization Code Flow via Worker) ────────────────────────────────
+function startLogin() {
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: "code",
+    scope: SCOPES,
+    access_type: "offline",
+    prompt: "consent",
+  });
+  location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + params.toString();
 }
 
-function startGoogleLogin() {
-  const clientId = getClientId();
-  if (!clientId) { alert("Client ID Google non configurato."); return; }
-  // Use GIS tokenClient for better mobile compatibility
-  if (window.google && window.google.accounts) {
-    const tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: SCOPES,
-      callback: (response) => {
-        if (response.access_token) {
-          accessToken = response.access_token;
-          localStorage.setItem("fcc_gtoken", response.access_token);
-          render();
-          syncFromDrive();
-        }
-      },
-    });
-    tokenClient.requestAccessToken({prompt: "select_account"});
-  } else {
-    // Fallback: redirect flow
-    const redirectUri = encodeURIComponent(location.origin + location.pathname);
-    const scope = encodeURIComponent(SCOPES);
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
-    location.href = url;
-  }
-}
-
-function handleOAuthCallback() {
-  const hash = location.hash;
-  if (!hash) return false;
-  const params = new URLSearchParams(hash.substring(1));
-  const token = params.get("access_token");
-  if (!token) return false;
-  accessToken = token;
-  localStorage.setItem("fcc_gtoken", token);
+async function handleCallback() {
+  const params = new URLSearchParams(location.search);
+  const code = params.get("code");
+  if (!code) return false;
   history.replaceState(null, "", location.pathname);
-  return true;
+  try {
+    const res = await fetch(`${WORKER_URL}/token?code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`);
+    const json = await res.json();
+    if (json.access_token) {
+      accessToken = json.access_token;
+      refreshToken = json.refresh_token || null;
+      localStorage.setItem("fcc_access_token", accessToken);
+      if (refreshToken) localStorage.setItem("fcc_refresh_token", refreshToken);
+      return true;
+    }
+  } catch(e) { console.error("Token exchange error:", e); }
+  return false;
 }
 
+async function refreshAccessToken() {
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch(`${WORKER_URL}/refresh?refresh_token=${encodeURIComponent(refreshToken)}`);
+    const json = await res.json();
+    if (json.access_token) {
+      accessToken = json.access_token;
+      localStorage.setItem("fcc_access_token", accessToken);
+      return true;
+    }
+  } catch(e) { console.error("Refresh error:", e); }
+  return false;
+}
+
+function logout() {
+  accessToken = null; refreshToken = null; driveFileId = null;
+  localStorage.removeItem("fcc_access_token");
+  localStorage.removeItem("fcc_refresh_token");
+  localStorage.removeItem("fcc_gfile");
+  render();
+}
+
+// ── Drive Sync ────────────────────────────────────────────────────────────────
 async function driveRequest(method, url, body) {
-  const headers = { "Authorization": "Bearer " + accessToken };
-  if (body && typeof body === "string") headers["Content-Type"] = "application/json";
-  const res = await fetch(url, { method, headers, body: body || undefined });
-  if (res.status === 401) { accessToken = null; localStorage.removeItem("fcc_gtoken"); render(); throw new Error("Token scaduto"); }
+  let res = await fetch(url, {
+    method,
+    headers: { "Authorization": "Bearer " + accessToken, ...(body ? {"Content-Type":"application/json"} : {}) },
+    body: body || undefined,
+  });
+  if (res.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) { accessToken = null; render(); throw new Error("Auth expired"); }
+    res = await fetch(url, {
+      method,
+      headers: { "Authorization": "Bearer " + accessToken, ...(body ? {"Content-Type":"application/json"} : {}) },
+      body: body || undefined,
+    });
+  }
   return res;
 }
 
 async function findDriveFile() {
-  const res = await driveRequest("GET", "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27" + DRIVE_FILE_NAME + "%27&fields=files(id,name)");
+  const res = await driveRequest("GET", "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27"+DRIVE_FILE_NAME+"%27&fields=files(id)");
   const json = await res.json();
   return json.files && json.files.length > 0 ? json.files[0].id : null;
 }
 
-async function readDriveFile(fileId) {
-  const res = await driveRequest("GET", `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
-  return await res.json();
-}
-
-async function writeDriveFile(fileId, content) {
-  const body = JSON.stringify(content);
-  if (fileId) {
-    await driveRequest("PATCH",
-      `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
-      body);
-  } else {
-    const meta = JSON.stringify({ name: DRIVE_FILE_NAME, parents: ["appDataFolder"] });
-    const boundary = "fcc_boundary";
-    const multipart = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
-    const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + accessToken,
-        "Content-Type": `multipart/related; boundary=${boundary}`,
-      },
-      body: multipart,
-    });
-    const json = await res.json();
-    driveFileId = json.id;
-    localStorage.setItem("fcc_gfile", driveFileId);
-  }
-}
-
 async function syncFromDrive() {
   if (!accessToken) return;
-  syncStatus = "syncing"; render();
+  syncStatus = "syncing"; renderSyncBtn();
   try {
-    let fileId = driveFileId || await findDriveFile();
-    if (fileId) {
-      driveFileId = fileId;
-      localStorage.setItem("fcc_gfile", fileId);
-      const remote = await readDriveFile(fileId);
+    let fid = driveFileId || await findDriveFile();
+    if (fid) {
+      driveFileId = fid; localStorage.setItem("fcc_gfile", fid);
+      const res = await driveRequest("GET", `https://www.googleapis.com/drive/v3/files/${fid}?alt=media`);
+      const remote = await res.json();
       data = {...JSON.parse(JSON.stringify(defaultData)),...remote,
         expenseCats:remote.expenseCats||DEFAULT_EXPENSE_CATS,
         shopCats:remote.shopCats||DEFAULT_SHOP_CATS};
@@ -278,11 +265,8 @@ async function syncFromDrive() {
     syncStatus = "ok";
     lastSyncTime = new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
     localStorage.setItem("fcc_gsync", lastSyncTime);
-  } catch(e) {
-    console.error(e);
-    syncStatus = "error";
-  }
-  render();
+  } catch(e) { console.error(e); syncStatus = "error"; }
+  renderSyncBtn(); render();
 }
 
 function scheduleSave() {
@@ -292,45 +276,51 @@ function scheduleSave() {
 
 async function saveToDrive() {
   if (!accessToken) return;
-  syncStatus = "syncing"; renderSyncStatus();
+  syncStatus = "syncing"; renderSyncBtn();
   try {
-    let fileId = driveFileId || await findDriveFile();
-    await writeDriveFile(fileId, data);
+    let fid = driveFileId || await findDriveFile();
+    const body = JSON.stringify(data);
+    if (fid) {
+      await driveRequest("PATCH", `https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=media`, body);
+    } else {
+      const boundary = "fcc_b";
+      const meta = JSON.stringify({name:DRIVE_FILE_NAME,parents:["appDataFolder"]});
+      const mp = `--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
+      const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+        method:"POST",
+        headers:{"Authorization":"Bearer "+accessToken,"Content-Type":`multipart/related; boundary=${boundary}`},
+        body: mp,
+      });
+      const json = await res.json();
+      driveFileId = json.id; localStorage.setItem("fcc_gfile", driveFileId);
+    }
     syncStatus = "ok";
     lastSyncTime = new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
     localStorage.setItem("fcc_gsync", lastSyncTime);
-  } catch(e) {
-    console.error(e);
-    syncStatus = "error";
-  }
-  renderSyncStatus();
+  } catch(e) { console.error(e); syncStatus = "error"; }
+  renderSyncBtn();
 }
 
-function renderSyncStatus() {
+function renderSyncBtn() {
   const btn = document.getElementById("sync-btn");
   if (!btn) return;
-  if (syncStatus === "syncing") { btn.className="hbtn syncing"; btn.textContent="⟳ Sincron…"; }
-  else if (syncStatus === "ok") { btn.className="hbtn sync-ok"; btn.textContent="✓ Sync "+lastSyncTime; }
-  else if (syncStatus === "error") { btn.className="hbtn sync-err"; btn.textContent="✗ Errore sync"; }
+  if (syncStatus==="syncing") { btn.className="hbtn syncing"; btn.textContent="⟳ Sync…"; }
+  else if (syncStatus==="ok") { btn.className="hbtn sync-ok"; btn.textContent="✓ "+lastSyncTime; }
+  else if (syncStatus==="error") { btn.className="hbtn sync-err"; btn.textContent="✗ Errore"; }
   else { btn.className="hbtn"; btn.textContent="☁ Drive"; }
 }
 
-function update(fn) {
-  fn(data);
-  saveLocal(data);
-  scheduleSave();
-  render();
-}
+function update(fn) { fn(data); saveLocal(data); scheduleSave(); render(); }
 
 // ── Derived ───────────────────────────────────────────────────────────────────
 function derived() {
   const monthExpenses = data.expenses.filter(e => e.date && e.date.startsWith(viewMonth));
-  const monthBillsPaid = data.bills.filter(b => b.paid && b.month === viewMonth);
-  const monthExtras = data.extraIncomes.filter(e => e.month === viewMonth);
+  const monthBillsPaid = data.bills.filter(b => b.paid && b.month===viewMonth);
+  const monthExtras = data.extraIncomes.filter(e => e.month===viewMonth);
   const totalIncome = data.monthlyIncome + monthExtras.reduce((s,e)=>s+Number(e.amount),0);
-  const totalSpent  = monthExpenses.reduce((s,e)=>s+Number(e.amount),0);
-  const totalBills  = monthBillsPaid.reduce((s,b)=>s+Number(b.amount),0);
-  const balance     = totalIncome - totalSpent - totalBills;
+  const totalSpent = monthExpenses.reduce((s,e)=>s+Number(e.amount),0);
+  const totalBills = monthBillsPaid.reduce((s,b)=>s+Number(b.amount),0);
+  const balance = totalIncome - totalSpent - totalBills;
   return {monthExpenses,monthBillsPaid,monthExtras,totalIncome,totalSpent,totalBills,balance};
 }
 
@@ -339,13 +329,10 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = "";
   app.appendChild(renderHeader());
-  if (!accessToken) {
-    app.appendChild(renderLoginPrompt());
-    return;
-  }
+  if (!accessToken) { app.appendChild(renderLogin()); return; }
   app.appendChild(renderBalance());
   app.appendChild(renderTabs());
-  const main = el("main","");
+  const main = el("main");
   if (currentTab==="budget") main.appendChild(renderBudget());
   else if (currentTab==="bills") main.appendChild(renderBills());
   else if (currentTab==="shop") main.appendChild(renderShop());
@@ -353,17 +340,15 @@ function render() {
   app.appendChild(main);
 }
 
-function renderLoginPrompt() {
+function renderLogin() {
   const d = el("div","login-screen");
-  d.appendChild(el("div","","🏡"));
-  d.querySelector("div").style.fontSize="48px";
+  const ico = el("div","","🏡"); ico.style.fontSize="52px"; d.appendChild(ico);
   d.appendChild(el("div","login-title","Family Control Center"));
-  d.appendChild(el("div","login-sub","Connetti il tuo account Google per sincronizzare i dati automaticamente tra iPhone e Mac."));
-  const btn = el("button","login-btn","🔑 Accedi con Google");
-  btn.onclick = startGoogleLogin;
+  d.appendChild(el("div","login-sub","Connetti Google per sincronizzare automaticamente i dati tra iPhone e Mac."));
+  const btn = el("button","login-btn","🔑  Accedi con Google");
+  btn.onclick = startLogin;
   d.appendChild(btn);
-  const skip = el("button","","Continua senza sincronizzazione");
-  skip.style.cssText="background:transparent;border:none;color:#aaa;font-size:12px;cursor:pointer;margin-top:4px;font-family:Georgia,serif";
+  const skip = el("button","login-skip","Continua senza sincronizzazione");
   skip.onclick = () => { accessToken = "local_only"; render(); };
   d.appendChild(skip);
   return d;
@@ -382,19 +367,15 @@ function renderHeader() {
   const btns = el("div","header-btns");
   if (accessToken && accessToken !== "local_only") {
     const sb = el("button","hbtn","☁ Drive"); sb.id="sync-btn";
-    sb.onclick = syncFromDrive;
-    renderSyncStatus();
+    sb.onclick = syncFromDrive; renderSyncBtn();
     btns.appendChild(sb);
-    const logoutBtn = el("button","hbtn","↩ Esci");
-    logoutBtn.onclick = () => { accessToken=null; localStorage.removeItem("fcc_gtoken"); render(); };
-    btns.appendChild(logoutBtn);
+    const lb = el("button","hbtn","↩"); lb.title="Disconnetti";
+    lb.onclick = logout; btns.appendChild(lb);
   } else if (accessToken === "local_only") {
-    const loginBtn = el("button","hbtn","☁ Connetti Drive");
-    loginBtn.onclick = startGoogleLogin;
-    btns.appendChild(loginBtn);
+    const cb = el("button","hbtn","☁ Connetti Drive");
+    cb.onclick = startLogin; btns.appendChild(cb);
   }
-  top.appendChild(btns);
-  hdr.appendChild(top);
+  top.appendChild(btns); hdr.appendChild(top);
   const nav = el("div","month-nav");
   const prev = el("button","mnav-btn","‹"); prev.onclick=()=>{viewMonth=shiftYM(viewMonth,-1);render();};
   const lbl = el("span","month-label",monthLabel(viewMonth));
@@ -421,261 +402,194 @@ function renderBalance() {
 }
 
 function renderTabs() {
-  const tabs = [{id:"budget",label:"Budget",icon:"💰"},{id:"bills",label:"Scadenze",icon:"📅"},{id:"shop",label:"Spesa",icon:"🛒"},{id:"settings",label:"Impostaz.",icon:"⚙️"}];
+  const tabs=[{id:"budget",label:"Budget",icon:"💰"},{id:"bills",label:"Scadenze",icon:"📅"},{id:"shop",label:"Spesa",icon:"🛒"},{id:"settings",label:"Impostaz.",icon:"⚙️"}];
   const nav = el("nav");
-  tabs.forEach(t => {
+  tabs.forEach(t=>{
     const btn = el("button","tab-btn"+(t.id===currentTab?" active":""));
     btn.appendChild(el("span","tab-icon",t.icon));
     btn.appendChild(el("span","tab-label",t.label));
-    btn.onclick = () => { currentTab=t.id; render(); };
+    btn.onclick=()=>{currentTab=t.id;render();};
     nav.appendChild(btn);
   });
   return nav;
 }
 
-// ── BUDGET ────────────────────────────────────────────────────────────────────
 function renderBudget() {
   const {monthExpenses,monthExtras,totalIncome} = derived();
-  const cats = data.expenseCats || DEFAULT_EXPENSE_CATS;
+  const cats = data.expenseCats||DEFAULT_EXPENSE_CATS;
   const frag = document.createDocumentFragment();
   const incCard = card("💰 Entrate","#27ae60");
   const fixRow = el("div","row");
   const fl = el("div","row-left"); fl.appendChild(el("div","row-main","Stipendio fisso")); fixRow.appendChild(fl);
-  const fr = el("div","row-right");
-  fr.appendChild(el("span","row-value",fmt(data.monthlyIncome)));
-  const editBtn = el("button","btn btn-icon","✏️");
-  editBtn.onclick = () => { ui.editIncome=!ui.editIncome; render(); };
-  fr.appendChild(editBtn); fixRow.appendChild(fr); incCard.appendChild(fixRow);
+  const fr = el("div","row-right"); fr.appendChild(el("span","row-value",fmt(data.monthlyIncome)));
+  const eb = el("button","btn btn-icon","✏️"); eb.onclick=()=>{ui.editIncome=!ui.editIncome;render();}; fr.appendChild(eb); fixRow.appendChild(fr); incCard.appendChild(fixRow);
   if (ui.editIncome) {
-    const fb = el("div","formbox"); fb.style.marginTop="8px";
-    const row = el("div","frow");
-    const iInc = inp("number","€",data.monthlyIncome,"flex:1;min-width:0");
-    const sv = el("button","btn btn-dark","✓ Salva");
-    sv.onclick = () => { update(d=>{d.monthlyIncome=Number(iInc.value||0);}); ui.editIncome=false; render(); };
+    const fb=el("div","formbox"); fb.style.marginTop="8px"; const row=el("div","frow");
+    const iInc=inp("number","€",data.monthlyIncome,"flex:1;min-width:0");
+    const sv=el("button","btn btn-dark","✓ Salva"); sv.onclick=()=>{update(d=>{d.monthlyIncome=Number(iInc.value||0);});ui.editIncome=false;};
     row.appendChild(iInc); row.appendChild(sv); fb.appendChild(row); incCard.appendChild(fb);
   }
-  monthExtras.forEach(ex => {
-    const r = el("div","row");
-    const l = el("div","row-left"); l.appendChild(el("div","row-main",ex.label)); r.appendChild(l);
-    const rr = el("div","row-right");
-    rr.appendChild(el("span","row-value",fmt(ex.amount)));
-    const d2 = el("button","btn btn-icon","🗑️"); d2.style.color="#e74c3c";
-    d2.onclick = () => update(d=>{d.extraIncomes=d.extraIncomes.filter(x=>x.id!==ex.id);});
+  monthExtras.forEach(ex=>{
+    const r=el("div","row"); const l=el("div","row-left"); l.appendChild(el("div","row-main",ex.label)); r.appendChild(l);
+    const rr=el("div","row-right"); rr.appendChild(el("span","row-value",fmt(ex.amount)));
+    const d2=el("button","btn btn-icon","🗑️"); d2.style.color="#e74c3c"; d2.onclick=()=>update(d=>{d.extraIncomes=d.extraIncomes.filter(x=>x.id!==ex.id);});
     rr.appendChild(d2); r.appendChild(rr); incCard.appendChild(r);
   });
-  const addExtraBox = el("div","formbox"); addExtraBox.style.marginTop="8px";
-  const er = el("div","frow");
-  const iLabel = inp("text","Entrata extra…","","flex:2;min-width:0");
-  const iAmt = inp("number","€","","flex:1;min-width:60px");
-  const addBtn = el("button","btn btn-dark","+ Aggiungi");
-  addBtn.onclick = () => { if(!iLabel.value||!iAmt.value) return; update(d=>{d.extraIncomes.push({id:uid(),label:iLabel.value,amount:Number(iAmt.value),month:viewMonth});}); };
-  er.appendChild(iLabel); er.appendChild(iAmt); er.appendChild(addBtn);
-  addExtraBox.appendChild(er); incCard.appendChild(addExtraBox);
-  const tl = el("div","total-line"); tl.innerHTML=`Totale entrate: <strong>${fmt(totalIncome)}</strong>`; incCard.appendChild(tl);
+  const aeb=el("div","formbox"); aeb.style.marginTop="8px"; const er=el("div","frow");
+  const iLabel=inp("text","Entrata extra…","","flex:2;min-width:0");
+  const iAmt=inp("number","€","","flex:1;min-width:60px");
+  const ab=el("button","btn btn-dark","+ Aggiungi");
+  ab.onclick=()=>{if(!iLabel.value||!iAmt.value)return;update(d=>{d.extraIncomes.push({id:uid(),label:iLabel.value,amount:Number(iAmt.value),month:viewMonth});});};
+  er.appendChild(iLabel); er.appendChild(iAmt); er.appendChild(ab); aeb.appendChild(er); incCard.appendChild(aeb);
+  const tl=el("div","total-line"); tl.innerHTML=`Totale entrate: <strong>${fmt(totalIncome)}</strong>`; incCard.appendChild(tl);
   frag.appendChild(incCard);
 
-  const expCard = card("📤 Spese","#e74c3c");
-  const addExpBtn = el("button","btn-add","+ Aggiungi spesa");
-  addExpBtn.onclick = () => { ui.showAddExp=!ui.showAddExp; render(); };
-  expCard.appendChild(addExpBtn);
+  const expCard=card("📤 Spese","#e74c3c");
+  const aExpBtn=el("button","btn-add","+ Aggiungi spesa"); aExpBtn.onclick=()=>{ui.showAddExp=!ui.showAddExp;render();}; expCard.appendChild(aExpBtn);
   if (ui.showAddExp) {
-    const fb = el("div","formbox");
-    const iDesc = inp("text","Descrizione (es. Frutteria)","");
-    const r1 = el("div","frow");
-    const iAmt = inp("number","€","","flex:1;min-width:0");
-    const iDate = inp("date","",today(),"flex:1;min-width:0");
-    r1.appendChild(iAmt); r1.appendChild(iDate);
-    const catNames = cats.map(c=>c.name);
-    const sCat = sel(catNames,catNames[0]); sCat.style.flex="1";
-    const sSub = sel(["— Sottocategoria —"],"","flex:1");
-    const updateSubs = () => {
-      const c = cats.find(x=>x.name===sCat.value);
-      sSub.innerHTML="";
-      const defOpt = document.createElement("option"); defOpt.value=""; defOpt.textContent="— Sottocategoria —"; sSub.appendChild(defOpt);
-      if(c&&c.subs&&c.subs.length){c.subs.forEach(s=>{const o=document.createElement("option");o.value=s;o.textContent=s;sSub.appendChild(o);});sSub.style.display="";}
-      else sSub.style.display="none";
-    };
-    sCat.onchange=updateSubs; updateSubs();
-    const catRow = el("div","frow"); catRow.appendChild(sCat); catRow.appendChild(sSub);
-    const sv = el("button","btn btn-dark","✓ Salva spesa");
-    sv.onclick = () => {
-      if(!iDesc.value||!iAmt.value) return;
-      update(d=>{d.expenses.push({id:uid(),label:iDesc.value,amount:Number(iAmt.value),date:iDate.value,category:sCat.value,subcategory:sSub.value||""});});
-      ui.showAddExp=false;
-    };
-    fb.appendChild(iDesc); fb.appendChild(r1); fb.appendChild(catRow); fb.appendChild(sv);
-    expCard.appendChild(fb);
+    const fb=el("div","formbox"); const iDesc=inp("text","Descrizione…","");
+    const r1=el("div","frow"); const iAmt=inp("number","€","","flex:1;min-width:0"); const iDate=inp("date","",today(),"flex:1;min-width:0"); r1.appendChild(iAmt); r1.appendChild(iDate);
+    const catNames=cats.map(c=>c.name); const sCat=sel(catNames,catNames[0]); sCat.style.flex="1";
+    const sSub=sel(["— Sottocategoria —"],"","flex:1"); sSub.style.display="none";
+    const updSubs=()=>{const c=cats.find(x=>x.name===sCat.value);sSub.innerHTML="";const dop=document.createElement("option");dop.value="";dop.textContent="— Sottocategoria —";sSub.appendChild(dop);if(c&&c.subs&&c.subs.length){c.subs.forEach(s=>{const o=document.createElement("option");o.value=s;o.textContent=s;sSub.appendChild(o);});sSub.style.display="";}else sSub.style.display="none";};
+    sCat.onchange=updSubs; updSubs();
+    const catRow=el("div","frow"); catRow.appendChild(sCat); catRow.appendChild(sSub);
+    const sv=el("button","btn btn-dark","✓ Salva spesa");
+    sv.onclick=()=>{if(!iDesc.value||!iAmt.value)return;update(d=>{d.expenses.push({id:uid(),label:iDesc.value,amount:Number(iAmt.value),date:iDate.value,category:sCat.value,subcategory:sSub.value||""});});ui.showAddExp=false;};
+    fb.appendChild(iDesc); fb.appendChild(r1); fb.appendChild(catRow); fb.appendChild(sv); expCard.appendChild(fb);
   }
-  const byCategory = cats.map(c=>({cat:c.name,icon:c.icon,items:monthExpenses.filter(x=>x.category===c.name),total:monthExpenses.filter(x=>x.category===c.name).reduce((s,x)=>s+Number(x.amount),0)})).filter(g=>g.items.length>0);
+  const byCategory=cats.map(c=>({cat:c.name,icon:c.icon,items:monthExpenses.filter(x=>x.category===c.name),total:monthExpenses.filter(x=>x.category===c.name).reduce((s,x)=>s+Number(x.amount),0)})).filter(g=>g.items.length>0);
   if(byCategory.length===0) expCard.appendChild(el("div","empty","Nessuna spesa questo mese"));
-  byCategory.forEach(g => {
-    const expanded = ui.expandedExpCats[g.cat]!==false;
-    const ch = el("div","cat-header");
-    const cl = el("div","cat-header-left");
-    cl.appendChild(el("span","",g.icon+" "+g.cat+" ("+g.items.length+")"));
-    const cr = el("div",""); cr.style.cssText="display:flex;align-items:center;gap:6px";
-    cr.appendChild(el("span","cat-total",fmt(g.total))); cr.appendChild(el("span","",expanded?"▲":"▼"));
-    ch.appendChild(cl); ch.appendChild(cr);
-    ch.onclick = () => { ui.expandedExpCats[g.cat]=!expanded; render(); };
-    expCard.appendChild(ch);
-    if (expanded) {
-      const bySub = {};
-      g.items.forEach(it=>{const s=it.subcategory||"—";if(!bySub[s])bySub[s]=[];bySub[s].push(it);});
-      const hasSubs = Object.keys(bySub).some(s=>s!=="—")||Object.keys(bySub).length>1;
-      if(hasSubs){Object.entries(bySub).forEach(([sub,items])=>{if(sub!=="—")expCard.appendChild(el("div","subcat-label",sub));items.forEach(it=>expCard.appendChild(makeExpRow(it)));});}
-      else g.items.forEach(it=>expCard.appendChild(makeExpRow(it)));
-    }
+  byCategory.forEach(g=>{
+    const expanded=ui.expandedExpCats[g.cat]!==false;
+    const ch=el("div","cat-header"); const cl=el("div","cat-header-left"); cl.appendChild(el("span","",g.icon+" "+g.cat+" ("+g.items.length+")"));
+    const cr=el("div",""); cr.style.cssText="display:flex;align-items:center;gap:6px"; cr.appendChild(el("span","cat-total",fmt(g.total))); cr.appendChild(el("span","",expanded?"▲":"▼"));
+    ch.appendChild(cl); ch.appendChild(cr); ch.onclick=()=>{ui.expandedExpCats[g.cat]=!expanded;render();}; expCard.appendChild(ch);
+    if(expanded){const bySub={};g.items.forEach(it=>{const s=it.subcategory||"—";if(!bySub[s])bySub[s]=[];bySub[s].push(it);});const hasSubs=Object.keys(bySub).some(s=>s!=="—")||Object.keys(bySub).length>1;if(hasSubs){Object.entries(bySub).forEach(([sub,items])=>{if(sub!=="—")expCard.appendChild(el("div","subcat-label",sub));items.forEach(it=>expCard.appendChild(makeExpRow(it)));});}else g.items.forEach(it=>expCard.appendChild(makeExpRow(it)));}
   });
   if(byCategory.length>0){const tl2=el("div","total-line");tl2.innerHTML=`Totale spese: <strong style="color:#e74c3c">${fmt(monthExpenses.reduce((s,x)=>s+Number(x.amount),0))}</strong>`;expCard.appendChild(tl2);}
   frag.appendChild(expCard);
-  const wrap = el("div"); wrap.appendChild(frag); return wrap;
+  const wrap=el("div"); wrap.appendChild(frag); return wrap;
 }
 
-function makeExpRow(it) {
-  const r = el("div","row");
-  const l = el("div","row-left"); l.appendChild(el("div","row-main",it.label)); l.appendChild(el("div","row-sub",it.date||"")); r.appendChild(l);
-  const rr = el("div","row-right"); rr.appendChild(el("span","row-value",fmt(it.amount)));
-  const d = el("button","btn btn-icon","🗑️"); d.style.color="#e74c3c";
-  d.onclick = () => update(dd=>{dd.expenses=dd.expenses.filter(x=>x.id!==it.id);});
+function makeExpRow(it){
+  const r=el("div","row"); const l=el("div","row-left"); l.appendChild(el("div","row-main",it.label)); l.appendChild(el("div","row-sub",it.date||"")); r.appendChild(l);
+  const rr=el("div","row-right"); rr.appendChild(el("span","row-value",fmt(it.amount)));
+  const d=el("button","btn btn-icon","🗑️"); d.style.color="#e74c3c"; d.onclick=()=>update(dd=>{dd.expenses=dd.expenses.filter(x=>x.id!==it.id);});
   rr.appendChild(d); r.appendChild(rr); return r;
 }
 
-// ── BILLS ─────────────────────────────────────────────────────────────────────
-function renderBills() {
-  const todayNum=new Date().getDate(), todayFull=today();
-  const withStatus = data.bills.map(b=>{
-    const isPaid=b.paid&&b.month===viewMonth; let urgent=false;
-    if(!isPaid){if(!b.variable&&b.dayOfMonth){const diff=Number(b.dayOfMonth)-todayNum;urgent=diff>=0&&diff<=5;}else if(b.dueDate){const diff=(new Date(b.dueDate)-new Date(todayFull))/86400000;urgent=diff>=0&&diff<=5;}}
-    return {...b,isPaid,urgent};
-  });
-  const unpaid=withStatus.filter(b=>!b.isPaid), paid=withStatus.filter(b=>b.isPaid);
-  const c = card("📅 Scadenze","#8e44ad");
-  const addBtn = el("button","btn-add","+ Aggiungi scadenza");
-  addBtn.onclick = () => { ui.showAddBill=!ui.showAddBill; render(); };
-  c.appendChild(addBtn);
+function renderBills(){
+  const tn=new Date().getDate(),tf=today();
+  const ws=data.bills.map(b=>{const ip=b.paid&&b.month===viewMonth;let u=false;if(!ip){if(!b.variable&&b.dayOfMonth){const d=Number(b.dayOfMonth)-tn;u=d>=0&&d<=5;}else if(b.dueDate){const d=(new Date(b.dueDate)-new Date(tf))/86400000;u=d>=0&&d<=5;}}return{...b,isPaid:ip,urgent:u};});
+  const unpaid=ws.filter(b=>!b.isPaid),paid=ws.filter(b=>b.isPaid);
+  const c=card("📅 Scadenze","#8e44ad");
+  const ab=el("button","btn-add","+ Aggiungi scadenza"); ab.onclick=()=>{ui.showAddBill=!ui.showAddBill;render();}; c.appendChild(ab);
   if(ui.showAddBill){
     const fb=el("div","formbox");
     const r1=el("div","frow"); const sType=sel(Object.keys(BILL_ICONS),"Altro","flex:1;min-width:0"); const iName=inp("text","Nome bolletta","","flex:2;min-width:0"); r1.appendChild(sType); r1.appendChild(iName);
     const r2=el("div","frow"); const iAmt=inp("number","Importo €","","flex:1;min-width:0"); const lbl=el("label","checkbox-label"); const chk=document.createElement("input"); chk.type="checkbox"; lbl.appendChild(chk); lbl.appendChild(document.createTextNode("Data variabile")); r2.appendChild(iAmt); r2.appendChild(lbl);
-    const r3=el("div",""); const iDay=inp("number","Giorno del mese (es. 15)",""); const iDate=inp("date","",""); iDate.style.display="none"; chk.onchange=()=>{iDay.style.display=chk.checked?"none":"";iDate.style.display=chk.checked?"":"none";}; r3.appendChild(iDay); r3.appendChild(iDate);
-    const sv=el("button","btn btn-dark","✓ Salva scadenza");
-    sv.onclick=()=>{if(!iName.value||!iAmt.value)return;update(d=>{d.bills.push({id:uid(),label:iName.value,amount:Number(iAmt.value),type:sType.value,dayOfMonth:iDay.value,variable:chk.checked,dueDate:iDate.value,paid:false,month:null});});ui.showAddBill=false;};
+    const r3=el("div",""); const iDay=inp("number","Giorno del mese",""); const iDate=inp("date","",""); iDate.style.display="none"; chk.onchange=()=>{iDay.style.display=chk.checked?"none":"";iDate.style.display=chk.checked?"":"none";}; r3.appendChild(iDay); r3.appendChild(iDate);
+    const sv=el("button","btn btn-dark","✓ Salva"); sv.onclick=()=>{if(!iName.value||!iAmt.value)return;update(d=>{d.bills.push({id:uid(),label:iName.value,amount:Number(iAmt.value),type:sType.value,dayOfMonth:iDay.value,variable:chk.checked,dueDate:iDate.value,paid:false,month:null});});ui.showAddBill=false;};
     fb.appendChild(r1);fb.appendChild(r2);fb.appendChild(r3);fb.appendChild(sv);c.appendChild(fb);
   }
-  if(unpaid.length===0&&paid.length===0) c.appendChild(el("div","empty","Nessuna scadenza configurata"));
-  if(unpaid.length===0&&paid.length>0) c.appendChild(el("div","empty","🎉 Tutto pagato questo mese!"));
+  if(unpaid.length===0&&paid.length===0)c.appendChild(el("div","empty","Nessuna scadenza configurata"));
+  if(unpaid.length===0&&paid.length>0)c.appendChild(el("div","empty","🎉 Tutto pagato questo mese!"));
   unpaid.forEach(b=>c.appendChild(makeBillRow(b)));
   if(unpaid.length>0){const tl=el("div","total-line");tl.innerHTML=`Da pagare: <strong>${fmt(unpaid.reduce((s,b)=>s+Number(b.amount),0))}</strong>`;c.appendChild(tl);}
   if(paid.length>0){c.appendChild(el("div","divider","✅ Pagati questo mese"));paid.forEach(b=>{const w=el("div","opacity-60");w.appendChild(makeBillRow(b));c.appendChild(w);});const tl=el("div","total-line");tl.innerHTML=`Pagati: <strong>${fmt(paid.reduce((s,b)=>s+Number(b.amount),0))}</strong>`;c.appendChild(tl);}
   return c;
 }
 
-function makeBillRow(b) {
+function makeBillRow(b){
   const row=el("div","bill-row"+(b.urgent?" urgent":""));
-  const left=el("div",""); left.style.cssText="display:flex;align-items:center";
-  left.appendChild(el("span","bill-icon",BILL_ICONS[b.type]||"📄"));
-  const info=el("div"); const nm=el("div","bill-name",b.label);
-  if(b.urgent) nm.appendChild(el("span","badge-urgent","⚠️ In scadenza"));
-  info.appendChild(nm); info.appendChild(el("div","bill-sub",b.variable?(b.dueDate||"Data da definire"):`Ogni ${b.dayOfMonth} del mese`));
-  left.appendChild(info); row.appendChild(left);
+  const left=el("div",""); left.style.cssText="display:flex;align-items:center"; left.appendChild(el("span","bill-icon",BILL_ICONS[b.type]||"📄"));
+  const info=el("div"); const nm=el("div","bill-name",b.label); if(b.urgent)nm.appendChild(el("span","badge-urgent","⚠️ In scadenza")); info.appendChild(nm);
+  info.appendChild(el("div","bill-sub",b.variable?(b.dueDate||"Data da definire"):`Ogni ${b.dayOfMonth} del mese`)); left.appendChild(info); row.appendChild(left);
   const right=el("div","row-right"); right.appendChild(el("span","row-value",fmt(b.amount)));
-  const payBtn=el("button","btn-pay",b.isPaid?"✓ Pagato":"Paga"); payBtn.style.background=b.isPaid?"#27ae60":"#2c2c2c";
-  payBtn.onclick=()=>update(d=>{d.bills=d.bills.map(x=>x.id===b.id?{...x,paid:!b.isPaid,month:!b.isPaid?viewMonth:null}:x);});
-  const del=el("button","btn btn-icon","🗑️"); del.style.color="#e74c3c";
-  del.onclick=()=>update(d=>{d.bills=d.bills.filter(x=>x.id!==b.id);});
-  right.appendChild(payBtn); right.appendChild(del); row.appendChild(right); return row;
+  const pb=el("button","btn-pay",b.isPaid?"✓ Pagato":"Paga"); pb.style.background=b.isPaid?"#27ae60":"#2c2c2c";
+  pb.onclick=()=>update(d=>{d.bills=d.bills.map(x=>x.id===b.id?{...x,paid:!b.isPaid,month:!b.isPaid?viewMonth:null}:x);});
+  const del=el("button","btn btn-icon","🗑️"); del.style.color="#e74c3c"; del.onclick=()=>update(d=>{d.bills=d.bills.filter(x=>x.id!==b.id);});
+  right.appendChild(pb); right.appendChild(del); row.appendChild(right); return row;
 }
 
-// ── SHOP ──────────────────────────────────────────────────────────────────────
-function renderShop() {
-  const shopCats=data.shopCats||DEFAULT_SHOP_CATS, firstCat=shopCats[0]?shopCats[0].name:"Alimentari";
+function renderShop(){
+  const sc=data.shopCats||DEFAULT_SHOP_CATS,fc=sc[0]?sc[0].name:"Alimentari";
   const c=card("🛒 Lista della Spesa","#e67e22");
-  const fb=el("div","formbox");
-  const r1=el("div","frow");
-  const iItem=inp("text","Articolo…","","flex:3;min-width:0"); iItem.onkeydown=ev=>{if(ev.key==="Enter")addShopItem();};
-  const iQty=inp("number","Qtà","1","flex:1;min-width:50px");
-  r1.appendChild(iItem); r1.appendChild(iQty);
-  const catNames=shopCats.map(x=>x.name); const sCat=sel(catNames,firstCat); sCat.style.flex="1";
+  const fb=el("div","formbox"); const r1=el("div","frow");
+  const iItem=inp("text","Articolo…","","flex:3;min-width:0"); iItem.onkeydown=ev=>{if(ev.key==="Enter")addSI();};
+  const iQty=inp("number","Qtà","1","flex:1;min-width:50px"); r1.appendChild(iItem); r1.appendChild(iQty);
+  const cn=sc.map(x=>x.name); const sCat=sel(cn,fc); sCat.style.flex="1";
   const sSub=sel(["— Sottocategoria —"],"","flex:1"); sSub.style.display="none";
-  const catRow=el("div","frow"); catRow.appendChild(sCat); catRow.appendChild(sSub);
-  const addBtn2=el("button","btn btn-dark","+ Aggiungi");
-  function addShopItem(){if(!iItem.value)return;update(d=>{d.shoppingList.push({id:uid(),label:iItem.value,qty:iQty.value||"1",category:sCat.value,subcategory:sSub.value||"",checked:false});});}
-  addBtn2.onclick=addShopItem;
-  fb.appendChild(r1); fb.appendChild(catRow); fb.appendChild(addBtn2); c.appendChild(fb);
-  const toggleBtn=el("button","toggle-presets",ui.showPresets?"▲ Nascondi lista rapida":"▼ Aggiungi da lista rapida");
-  toggleBtn.onclick=()=>{ui.showPresets=!ui.showPresets;render();};
-  c.appendChild(toggleBtn);
-  if(ui.showPresets){const pw=el("div","presets-wrap");data.shoppingPresets.forEach(p=>{const btn=el("button","preset-btn",p);btn.onclick=()=>{if(data.shoppingList.find(i=>i.label===p&&!i.checked))return;update(d=>{d.shoppingList.push({id:uid(),label:p,qty:"1",category:firstCat,subcategory:"",checked:false});});};pw.appendChild(btn);});c.appendChild(pw);}
-  const unchecked=data.shoppingList.filter(i=>!i.checked), checked=data.shoppingList.filter(i=>i.checked);
-  if(unchecked.length===0&&checked.length===0) c.appendChild(el("div","empty","La lista è vuota"));
-  shopCats.forEach(cat=>{const items=unchecked.filter(i=>i.category===cat.name);if(!items.length)return;c.appendChild(el("div","shop-cat-label",cat.name));items.forEach(item=>c.appendChild(makeShopItem(item,false)));});
-  const uncatItems=unchecked.filter(i=>!shopCats.find(c2=>c2.name===i.category));
-  if(uncatItems.length){c.appendChild(el("div","shop-cat-label","Altro"));uncatItems.forEach(item=>c.appendChild(makeShopItem(item,false)));}
-  if(checked.length>0){c.appendChild(el("div","divider","✅ Nel carrello ("+checked.length+")"));checked.forEach(item=>c.appendChild(makeShopItem(item,true)));const clr=el("button","clear-cart","🗑️ Svuota carrello");clr.onclick=()=>update(d=>{d.shoppingList=d.shoppingList.filter(i=>!i.checked);});c.appendChild(clr);}
+  const cr=el("div","frow"); cr.appendChild(sCat); cr.appendChild(sSub);
+  const ab=el("button","btn btn-dark","+ Aggiungi");
+  function addSI(){if(!iItem.value)return;update(d=>{d.shoppingList.push({id:uid(),label:iItem.value,qty:iQty.value||"1",category:sCat.value,subcategory:sSub.value||"",checked:false});});}
+  ab.onclick=addSI; fb.appendChild(r1); fb.appendChild(cr); fb.appendChild(ab); c.appendChild(fb);
+  const tb=el("button","toggle-presets",ui.showPresets?"▲ Nascondi lista rapida":"▼ Aggiungi da lista rapida"); tb.onclick=()=>{ui.showPresets=!ui.showPresets;render();}; c.appendChild(tb);
+  if(ui.showPresets){const pw=el("div","presets-wrap");data.shoppingPresets.forEach(p=>{const btn=el("button","preset-btn",p);btn.onclick=()=>{if(data.shoppingList.find(i=>i.label===p&&!i.checked))return;update(d=>{d.shoppingList.push({id:uid(),label:p,qty:"1",category:fc,subcategory:"",checked:false});});};pw.appendChild(btn);});c.appendChild(pw);}
+  const unc=data.shoppingList.filter(i=>!i.checked),chk=data.shoppingList.filter(i=>i.checked);
+  if(unc.length===0&&chk.length===0)c.appendChild(el("div","empty","La lista è vuota"));
+  sc.forEach(cat=>{const items=unc.filter(i=>i.category===cat.name);if(!items.length)return;c.appendChild(el("div","shop-cat-label",cat.name));items.forEach(item=>c.appendChild(makeShopItem(item,false)));});
+  const ui2=unc.filter(i=>!sc.find(c2=>c2.name===i.category));if(ui2.length){c.appendChild(el("div","shop-cat-label","Altro"));ui2.forEach(item=>c.appendChild(makeShopItem(item,false)));}
+  if(chk.length>0){c.appendChild(el("div","divider","✅ Nel carrello ("+chk.length+")"));chk.forEach(item=>c.appendChild(makeShopItem(item,true)));const clr=el("button","clear-cart","🗑️ Svuota carrello");clr.onclick=()=>update(d=>{d.shoppingList=d.shoppingList.filter(i=>!i.checked);});c.appendChild(clr);}
   return c;
 }
 
 function makeShopItem(item,done){
   const row=el("div","shop-item"+(done?" opacity-60":""));
-  const chk=el("div","check-circle"+(done?" done":""),done?"✓":"");
-  chk.onclick=()=>update(d=>{d.shoppingList=d.shoppingList.map(i=>i.id===item.id?{...i,checked:!i.checked}:i);});
-  const info=el("div",""); info.style.flex="1";
-  const lbl=el("span","",(Number(item.qty)>1?item.qty+"× ":"")+item.label);
-  if(done) lbl.style.textDecoration="line-through";
-  info.appendChild(lbl);
+  const chk=el("div","check-circle"+(done?" done":""),done?"✓":""); chk.onclick=()=>update(d=>{d.shoppingList=d.shoppingList.map(i=>i.id===item.id?{...i,checked:!i.checked}:i);});
+  const info=el("div",""); info.style.flex="1"; const lbl=el("span","",(Number(item.qty)>1?item.qty+"× ":"")+item.label); if(done)lbl.style.textDecoration="line-through"; info.appendChild(lbl);
   if(item.subcategory){const sub=el("div","",item.subcategory);sub.style.cssText="font-size:10px;color:#bbb";info.appendChild(sub);}
-  const del=el("button","btn btn-icon","🗑️"); del.style.color="#e74c3c";
-  del.onclick=()=>update(d=>{d.shoppingList=d.shoppingList.filter(i=>i.id!==item.id);});
+  const del=el("button","btn btn-icon","🗑️"); del.style.color="#e74c3c"; del.onclick=()=>update(d=>{d.shoppingList=d.shoppingList.filter(i=>i.id!==item.id);});
   row.appendChild(chk); row.appendChild(info); row.appendChild(del); return row;
 }
 
-// ── SETTINGS ──────────────────────────────────────────────────────────────────
-function renderSettings(){const wrap=el("div");wrap.appendChild(renderCatManager("📤 Categorie Spese","#e74c3c","expenseCats",true,"expandedSettingsCat"));wrap.appendChild(renderCatManager("🛒 Categorie Lista Spesa","#e67e22","shopCats",false,"expandedShopSettingsCat"));wrap.appendChild(renderPresetManager());return wrap;}
+function renderSettings(){const wrap=el("div");wrap.appendChild(renderCatMgr("📤 Categorie Spese","#e74c3c","expenseCats",true,"expandedSettingsCat"));wrap.appendChild(renderCatMgr("🛒 Categorie Lista Spesa","#e67e22","shopCats",false,"expandedShopSettingsCat"));wrap.appendChild(renderPresetMgr());return wrap;}
 
-function renderCatManager(title,accent,dataKey,showIcon,uiKey){
-  const cats=data[dataKey]||[]; const c=card(title,accent);
+function renderCatMgr(title,accent,dk,showIcon,uiKey){
+  const cats=data[dk]||[]; const c=card(title,accent);
   cats.forEach(cat=>{
     const sec=el("div","settings-section"); const row=el("div","settings-cat-row");
     const btn=el("button","settings-cat-btn"); if(showIcon)btn.appendChild(el("span","",cat.icon+" ")); btn.appendChild(el("span","",cat.name+" ")); btn.appendChild(el("span","settings-cat-count","("+(cat.subs||[]).length+" sottoc.) "+(ui[uiKey]===cat.id?"▲":"▼")));
     btn.onclick=()=>{ui[uiKey]=ui[uiKey]===cat.id?null:cat.id;render();};
-    const delBtn=el("button","btn btn-icon","🗑️"); delBtn.style.color="#e74c3c";
-    delBtn.onclick=()=>{if(cats.length<=1){alert("Devi avere almeno una categoria.");return;}update(d=>{d[dataKey]=cats.filter(x=>x.id!==cat.id);});};
-    row.appendChild(btn); row.appendChild(delBtn); sec.appendChild(row);
+    const db=el("button","btn btn-icon","🗑️"); db.style.color="#e74c3c"; db.onclick=()=>{if(cats.length<=1){alert("Almeno una categoria.");return;}update(d=>{d[dk]=cats.filter(x=>x.id!==cat.id);});};
+    row.appendChild(btn); row.appendChild(db); sec.appendChild(row);
     if(ui[uiKey]===cat.id){
       const panel=el("div","sub-panel"); if(!(cat.subs||[]).length)panel.appendChild(el("div","no-sub","Nessuna sottocategoria"));
-      (cat.subs||[]).forEach(sub=>{const sr=el("div","sub-row");sr.appendChild(el("span","","• "+sub));const d2=el("button","btn btn-icon","🗑️");d2.style.color="#e74c3c";d2.onclick=()=>update(d=>{d[dataKey]=d[dataKey].map(x=>x.id===cat.id?{...x,subs:(x.subs||[]).filter(s=>s!==sub)}:x);});sr.appendChild(d2);panel.appendChild(sr);});
+      (cat.subs||[]).forEach(sub=>{const sr=el("div","sub-row");sr.appendChild(el("span","","• "+sub));const d2=el("button","btn btn-icon","🗑️");d2.style.color="#e74c3c";d2.onclick=()=>update(d=>{d[dk]=d[dk].map(x=>x.id===cat.id?{...x,subs:(x.subs||[]).filter(s=>s!==sub)}:x);});sr.appendChild(d2);panel.appendChild(sr);});
       const ar=el("div","frow"); ar.style.marginTop="6px"; const iSub=inp("text","Nuova sottocategoria…","","flex:1;min-width:0");
-      iSub.onkeydown=ev=>{if(ev.key==="Enter"&&iSub.value.trim())update(d=>{d[dataKey]=d[dataKey].map(x=>x.id===cat.id?{...x,subs:[...(x.subs||[]),iSub.value.trim()]}:x);});};
-      const aBtn=el("button","btn btn-dark","+ "); aBtn.onclick=()=>{if(!iSub.value.trim())return;update(d=>{d[dataKey]=d[dataKey].map(x=>x.id===cat.id?{...x,subs:[...(x.subs||[]),iSub.value.trim()]}:x);});};
-      ar.appendChild(iSub); ar.appendChild(aBtn); panel.appendChild(ar); sec.appendChild(panel);
+      const aBtn=el("button","btn btn-dark","+ "); aBtn.onclick=()=>{if(!iSub.value.trim())return;update(d=>{d[dk]=d[dk].map(x=>x.id===cat.id?{...x,subs:[...(x.subs||[]),iSub.value.trim()]}:x);});};
+      iSub.onkeydown=ev=>{if(ev.key==="Enter")aBtn.click();}; ar.appendChild(iSub); ar.appendChild(aBtn); panel.appendChild(ar); sec.appendChild(panel);
     }
     c.appendChild(sec);
   });
-  const addSec=el("div","add-cat-section"); addSec.appendChild(el("div","add-cat-label","Aggiungi categoria:"));
+  const as=el("div","add-cat-section"); as.appendChild(el("div","add-cat-label","Aggiungi categoria:"));
   const ar=el("div","frow"); let iIcon;
   if(showIcon){iIcon=inp("text","🏷️","📦","width:44px;text-align:center;padding:7px 4px;flex-shrink:0");ar.appendChild(iIcon);}
   const iName=inp("text","Nome categoria…","","flex:1;min-width:0");
-  const aBtn=el("button","btn btn-dark","+ "); aBtn.onclick=()=>{if(!iName.value.trim())return;update(d=>{d[dataKey]=[...d[dataKey],{id:uid(),name:iName.value.trim(),icon:showIcon?(iIcon.value||"📦"):"",subs:[]}];});};
-  iName.onkeydown=ev=>{if(ev.key==="Enter")aBtn.click();};
-  ar.appendChild(iName); ar.appendChild(aBtn); addSec.appendChild(ar); c.appendChild(addSec); return c;
+  const aBtn=el("button","btn btn-dark","+ "); aBtn.onclick=()=>{if(!iName.value.trim())return;update(d=>{d[dk]=[...d[dk],{id:uid(),name:iName.value.trim(),icon:showIcon?(iIcon.value||"📦"):"",subs:[]}];});};
+  iName.onkeydown=ev=>{if(ev.key==="Enter")aBtn.click();}; ar.appendChild(iName); ar.appendChild(aBtn); as.appendChild(ar); c.appendChild(as); return c;
 }
 
-function renderPresetManager(){
+function renderPresetMgr(){
   const c=card("⚡ Lista rapida spesa","#e67e22"); const wrap=el("div","presets-wrap");
   data.shoppingPresets.forEach(p=>{const tag=el("div","preset-tag");tag.appendChild(el("span","",p));const d=el("button","preset-del","✕");d.onclick=()=>update(dd=>{dd.shoppingPresets=dd.shoppingPresets.filter(x=>x!==p);});tag.appendChild(d);wrap.appendChild(tag);});
   c.appendChild(wrap);
   const ar=el("div","frow"); const iP=inp("text","Nuovo articolo rapido…","","flex:1;min-width:0");
   const aBtn=el("button","btn btn-dark","+ "); aBtn.onclick=()=>{if(!iP.value.trim()||data.shoppingPresets.includes(iP.value.trim()))return;update(d=>{d.shoppingPresets.push(iP.value.trim());});};
-  iP.onkeydown=ev=>{if(ev.key==="Enter")aBtn.click();};
-  ar.appendChild(iP); ar.appendChild(aBtn); c.appendChild(ar); return c;
+  iP.onkeydown=ev=>{if(ev.key==="Enter")aBtn.click();}; ar.appendChild(iP); ar.appendChild(aBtn); c.appendChild(ar); return c;
 }
 
 function card(title,accent){const c=el("div","card");c.style.borderTop="4px solid "+accent;const t=el("div","card-title",title);t.style.color=accent;c.appendChild(t);return c;}
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-handleOAuthCallback();
-render();
-if (accessToken && accessToken !== "local_only") syncFromDrive();
+(async () => {
+  const loggedIn = await handleCallback();
+  render();
+  if (loggedIn || (accessToken && accessToken !== "local_only")) {
+    syncFromDrive();
+  }
+})();
 </script>
 </body>
 </html>
