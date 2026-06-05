@@ -21,7 +21,7 @@ header{background:#2c2c2c;padding:14px 16px 10px;color:#fff}
 .brand-sub{font-size:10px;color:#aaa;letter-spacing:2px;text-transform:uppercase}
 .today-label{font-size:11px;color:#f0c040;margin-top:3px;letter-spacing:.5px}
 .header-btns{display:flex;gap:6px;margin-top:2px;flex-wrap:wrap;justify-content:flex-end}
-.hbtn{background:#3a3a3a;border:none;color:#ccc;border-radius:6px;padding:6px 10px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:11px;font-family:Georgia,serif}
+.hbtn{background:#3a3a3a;border:none;color:#ddd;border-radius:6px;padding:6px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;font-family:Georgia,serif;white-space:nowrap}
 .hbtn.sync-ok{background:#1a6b3c;color:#fff}
 .hbtn.sync-err{background:#7b1c1c;color:#fff}
 .hbtn.syncing{background:#7a6000;color:#fff}
@@ -307,10 +307,23 @@ function renderSyncBtn() {
   const btn = document.getElementById("sync-btn");
   if (!btn) return;
   const t = new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
-  if (syncStatus==="syncing") { btn.className="hbtn syncing"; btn.textContent="⟳ Sync…"; }
-  else if (syncStatus==="ok") { btn.className="hbtn sync-ok"; btn.textContent="✓ "+t; }
-  else if (syncStatus==="error") { btn.className="hbtn sync-err"; btn.textContent="✗ Errore"; }
-  else { btn.className="hbtn"; btn.textContent="☁"; }
+  const CLOUD_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>`;
+  const SYNC_SVG  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>`;
+  const CHECK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>`;
+  const ERR_SVG   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  if (syncStatus==="syncing") {
+    btn.className="hbtn syncing";
+    btn.innerHTML=SYNC_SVG+" Sync…";
+  } else if (syncStatus==="ok") {
+    btn.className="hbtn sync-ok";
+    btn.innerHTML=CHECK_SVG+" "+t;
+  } else if (syncStatus==="error") {
+    btn.className="hbtn sync-err";
+    btn.innerHTML=ERR_SVG+" Errore";
+  } else {
+    btn.className="hbtn";
+    btn.innerHTML=CLOUD_SVG+" Drive";
+  }
 }
 
 function renderHeader() {
@@ -325,7 +338,7 @@ function renderHeader() {
   top.appendChild(left);
   const btns = el("div","header-btns");
   if (currentUser) {
-    const sb = el("button","hbtn","☁"); sb.id="sync-btn"; renderSyncBtn();
+    const sb = el("button","hbtn",""); sb.id="sync-btn"; renderSyncBtn();
     btns.appendChild(sb);
     const lb = el("button","hbtn","↩"); lb.title="Esci"; lb.onclick=logout;
     btns.appendChild(lb);
