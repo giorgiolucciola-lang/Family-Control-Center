@@ -336,8 +336,9 @@ function renderHeader() {
   top.appendChild(left);
   const btns = el("div","header-btns");
   if (currentUser) {
-    const sb = el("button","hbtn",""); sb.id="sync-btn"; renderSyncBtn();
+    const sb = el("button","hbtn","☁️ Drive"); sb.id="sync-btn";
     btns.appendChild(sb);
+    renderSyncBtn();
     const lb = el("button","hbtn","↩"); lb.title="Esci"; lb.onclick=logout;
     btns.appendChild(lb);
   }
