@@ -2,7 +2,7 @@
   "name": "Family Control Center",
   "short_name": "Family CC",
   "description": "Budget, spese, scadenze e lista della spesa",
-  "start_url": "/Family-Control-Center/",
+  "start_url": "/fcc/",
   "display": "standalone",
   "background_color": "#9B59B6",
   "theme_color": "#9B59B6",
