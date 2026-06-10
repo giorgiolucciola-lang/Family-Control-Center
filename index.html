@@ -60,9 +60,11 @@ input[type=text],input[type=number],input[type=date],select{border:1px solid #dd
 input:focus,select:focus{border-color:#8e44ad;outline:none}
 input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
 .checkbox-label{display:flex;align-items:center;gap:6px;font-size:12px;color:#555;white-space:nowrap;cursor:pointer}
-.cat-header{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;padding-bottom:4px;border-bottom:2px solid #eee;cursor:pointer}
+.cat-header{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:bold;color:#fff;text-transform:uppercase;letter-spacing:1px;margin:14px 0 4px;padding:8px 12px;border-radius:8px;background:linear-gradient(135deg,#c0392b,#e74c3c);cursor:pointer;box-shadow:0 2px 6px rgba(231,76,60,.25)}
 .cat-header-left{display:flex;align-items:center;gap:6px}
-.cat-total{color:#e74c3c}
+.cat-total{color:#ffe0de;font-size:12px}
+.exp-list-divider{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:#999;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.exp-list-divider::before,.exp-list-divider::after{content:"";flex:1;height:1px;background:#e8e4e0}
 .subcat-label{font-size:10px;color:#aaa;font-style:italic;padding:2px 0 2px 8px;border-left:2px solid #f0ede9;margin-top:4px}
 .shop-cat-label{font-size:11px;font-weight:bold;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;border-bottom:1px solid #eee;padding-bottom:2px}
 .shop-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0ede9}
@@ -119,16 +121,6 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
 .rpt-table td{padding:7px 10px;border-bottom:1px solid #f0ede9;font-size:12px}
 .rpt-table .cat-row td{background:#f8f5ff;font-weight:bold;font-size:11px;color:#9B59B6;text-transform:uppercase;letter-spacing:.5px}
 .rpt-table .tot-row td{background:#2c2c2c;color:#fff;font-weight:bold}
-/* Day separator in expense list */
-.day-sep{display:flex;align-items:center;gap:8px;margin:12px 0 4px;padding:0 2px}
-.day-sep-label{font-size:11px;font-weight:bold;color:#8e44ad;white-space:nowrap;background:#f3eeff;border-radius:20px;padding:3px 10px;border:1px solid #d9c8f5}
-.day-sep-line{flex:1;height:1px;background:#ede8f5}
-.day-sep-total{font-size:11px;color:#aaa;white-space:nowrap}
-/* Category reorder buttons */
-.cat-reorder{display:flex;flex-direction:column;gap:1px;margin-right:2px}
-.cat-reorder-btn{background:transparent;border:none;cursor:pointer;color:#bbb;font-size:10px;line-height:1;padding:1px 3px}
-.cat-reorder-btn:hover{color:#8e44ad}
-.cat-reorder-btn:disabled{opacity:.2;cursor:default}
 </style>
 </head>
 <body>
@@ -191,17 +183,6 @@ const todayLabel = () => { const d=new Date(); return `${DAYS[d.getDay()]} ${d.g
 const el = (tag,cls,html) => { const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; };
 const inp = (type,ph,val,style) => { const i=document.createElement("input"); i.type=type; i.placeholder=ph||""; i.value=val||""; if(style) i.style.cssText=style; return i; };
 const sel = (opts,val,style) => { const s=document.createElement("select"); if(style) s.style.cssText=style; opts.forEach(o=>{ const op=document.createElement("option"); op.value=o; op.textContent=o; if(o===val) op.selected=true; s.appendChild(op); }); return s; };
-
-// Format date as "Lun 5 giu" or full "Lunedì 5 Giugno 2026"
-const DAYS_SHORT = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
-const MONTHS_FULL = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-const fmtDate = (ymd, full=false) => {
-  if(!ymd) return "";
-  const [y,m,d] = ymd.split("-").map(Number);
-  const dt = new Date(y, m-1, d);
-  if(full) return `${DAYS[dt.getDay()]} ${d} ${MONTHS_FULL[m-1]} ${y}`;
-  return `${DAYS_SHORT[dt.getDay()]} ${d} ${MONTHS[m-1]}`;
-};
 
 // ── App State ─────────────────────────────────────────────────────────────────
 let data = JSON.parse(JSON.stringify(defaultData));
@@ -474,42 +455,15 @@ function renderBudget() {
     sv.onclick=()=>{if(!iDesc.value||!iAmt.value)return;update(d=>{d.expenses.push({id:uid(),label:iDesc.value,amount:Number(iAmt.value),date:iDate.value,category:sCat.value,subcategory:sSub.value||""});});ui.showAddExp=false;};
     fb.appendChild(iDesc);fb.appendChild(r1);fb.appendChild(catRow);fb.appendChild(sv);expCard.appendChild(fb);
   }
-  const byCategory=cats.map(c=>({cat:c.name,icon:c.icon,items:monthExpenses.filter(x=>x.category===c.name),total:monthExpenses.filter(x=>x.category===c.name).reduce((s,x)=>s+Number(x.amount),0)})).filter(g=>g.items.length>0);
+  const byCategory=cats.map(c=>({cat:c.name,icon:c.icon,items:monthExpenses.filter(x=>x.category===c.name).sort((a,b)=>(b.date||"")>(a.date||"")?1:-1),total:monthExpenses.filter(x=>x.category===c.name).reduce((s,x)=>s+Number(x.amount),0)})).filter(g=>g.items.length>0);
   if(byCategory.length===0)expCard.appendChild(el("div","empty","Nessuna spesa questo mese"));
+  else{const sep=el("div","exp-list-divider","📋 Spese del mese");expCard.appendChild(sep);}
   byCategory.forEach(g=>{
     const expanded=ui.expandedExpCats[g.cat]!==false;
     const ch=el("div","cat-header");const cl=el("div","cat-header-left");cl.appendChild(el("span","",g.icon+" "+g.cat+" ("+g.items.length+")"));
     const cr=el("div","");cr.style.cssText="display:flex;align-items:center;gap:6px";cr.appendChild(el("span","cat-total",fmt(g.total)));cr.appendChild(el("span","",expanded?"▲":"▼"));
     ch.appendChild(cl);ch.appendChild(cr);ch.onclick=()=>{ui.expandedExpCats[g.cat]=!expanded;render();};expCard.appendChild(ch);
-    if(expanded){
-      const bySub={};g.items.forEach(it=>{const s=it.subcategory||"—";if(!bySub[s])bySub[s]=[];bySub[s].push(it);});
-      const hasSubs=Object.keys(bySub).some(s=>s!=="—")||Object.keys(bySub).length>1;
-      // Sort items by date desc and group by day
-      const renderItemsWithDays=(items,container)=>{
-        const sorted=[...items].sort((a,b)=>(b.date||"")>(a.date||"")?1:-1);
-        const byDay={};const dayOrder=[];
-        sorted.forEach(it=>{const k=it.date||"";if(!byDay[k]){byDay[k]=[];dayOrder.push(k);}byDay[k].push(it);});
-        dayOrder.forEach(dk2=>{
-          const dayItems=byDay[dk2];
-          const dayTotal=dayItems.reduce((s,x)=>s+Number(x.amount),0);
-          const sep=el("div","day-sep");
-          const lbl=el("span","day-sep-label",dk2?fmtDate(dk2):"Senza data");
-          const line=el("div","day-sep-line");
-          const tot=el("span","day-sep-total",fmt(dayTotal));
-          sep.appendChild(lbl);sep.appendChild(line);sep.appendChild(tot);
-          container.appendChild(sep);
-          dayItems.forEach(it=>container.appendChild(makeExpRow(it)));
-        });
-      };
-      if(hasSubs){
-        Object.entries(bySub).forEach(([sub,items])=>{
-          if(sub!=="—")expCard.appendChild(el("div","subcat-label",sub));
-          renderItemsWithDays(items,expCard);
-        });
-      } else {
-        renderItemsWithDays(g.items,expCard);
-      }
-    }
+    if(expanded){const bySub={};g.items.forEach(it=>{const s=it.subcategory||"—";if(!bySub[s])bySub[s]=[];bySub[s].push(it);});const hasSubs=Object.keys(bySub).some(s=>s!=="—")||Object.keys(bySub).length>1;if(hasSubs){Object.entries(bySub).forEach(([sub,items])=>{if(sub!=="—")expCard.appendChild(el("div","subcat-label",sub));items.sort((a,b)=>(b.date||"")>(a.date||"")?1:-1).forEach(it=>expCard.appendChild(makeExpRow(it)));});}else g.items.forEach(it=>expCard.appendChild(makeExpRow(it)));}
   });
   if(byCategory.length>0){const tl2=el("div","total-line");tl2.innerHTML=`Totale spese: <strong style="color:#e74c3c">${fmt(monthExpenses.reduce((s,x)=>s+Number(x.amount),0))}</strong>`;expCard.appendChild(tl2);}
   frag.appendChild(expCard);
@@ -517,9 +471,7 @@ function renderBudget() {
 }
 
 function makeExpRow(it){
-  const r=el("div","row");const l=el("div","row-left");l.appendChild(el("div","row-main",it.label));
-  if(it.date)l.appendChild(el("div","row-sub",fmtDate(it.date,true)));
-  r.appendChild(l);
+  const r=el("div","row");const l=el("div","row-left");l.appendChild(el("div","row-main",it.label));l.appendChild(el("div","row-sub",it.date||""));r.appendChild(l);
   const rr=el("div","row-right");rr.appendChild(el("span","row-value",fmt(it.amount)));
   const d=el("button","btn btn-icon","🗑️");d.style.color="#e74c3c";d.onclick=()=>update(dd=>{dd.expenses=dd.expenses.filter(x=>x.id!==it.id);});
   rr.appendChild(d);r.appendChild(rr);return r;
@@ -594,15 +546,8 @@ function renderSettings(){const wrap=el("div");wrap.appendChild(renderCatMgr("�
 
 function renderCatMgr(title,accent,dk,showIcon,uiKey){
   const cats=data[dk]||[];const c=card(title,accent);
-  cats.forEach((cat,idx)=>{
+  cats.forEach(cat=>{
     const sec=el("div","settings-section");const row=el("div","settings-cat-row");
-    // Reorder buttons
-    const reord=el("div","cat-reorder");
-    const upBtn=el("button","cat-reorder-btn","▲");upBtn.title="Sposta su";upBtn.disabled=idx===0;
-    upBtn.onclick=()=>update(d=>{const a=[...d[dk]];const t=a.splice(idx,1)[0];a.splice(idx-1,0,t);d[dk]=a;});
-    const dnBtn=el("button","cat-reorder-btn","▼");dnBtn.title="Sposta giù";dnBtn.disabled=idx===cats.length-1;
-    dnBtn.onclick=()=>update(d=>{const a=[...d[dk]];const t=a.splice(idx,1)[0];a.splice(idx+1,0,t);d[dk]=a;});
-    reord.appendChild(upBtn);reord.appendChild(dnBtn);row.appendChild(reord);
     const btn=el("button","settings-cat-btn");if(showIcon)btn.appendChild(el("span","",cat.icon+" "));btn.appendChild(el("span","",cat.name+" "));btn.appendChild(el("span","settings-cat-count","("+(cat.subs||[]).length+" sottoc.) "+(ui[uiKey]===cat.id?"▲":"▼")));
     btn.onclick=()=>{ui[uiKey]=ui[uiKey]===cat.id?null:cat.id;render();};
     const db=el("button","btn btn-icon","🗑️");db.style.color="#e74c3c";db.onclick=()=>{if(cats.length<=1){alert("Almeno una categoria.");return;}update(d=>{d[dk]=cats.filter(x=>x.id!==cat.id);});};
@@ -736,7 +681,7 @@ function renderReport(){
         cr.appendChild(td1);cr.appendChild(td2);t.appendChild(cr);
         items.sort((a,b)=>a.date>b.date?1:-1).forEach(e=>{
           const tr=el("tr","");
-          [e.date?fmtDate(e.date):"-",e.label,(e.subcategory||""),fmt(e.amount)].forEach((v,i)=>{
+          [e.date||"",e.label,(e.subcategory||""),fmt(e.amount)].forEach((v,i)=>{
             const td=el("td","",v);if(i===3)td.style.textAlign="right";tr.appendChild(td);
           });t.appendChild(tr);
         });
