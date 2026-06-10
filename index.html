@@ -60,11 +60,9 @@ input[type=text],input[type=number],input[type=date],select{border:1px solid #dd
 input:focus,select:focus{border-color:#8e44ad;outline:none}
 input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
 .checkbox-label{display:flex;align-items:center;gap:6px;font-size:12px;color:#555;white-space:nowrap;cursor:pointer}
-.cat-header{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:bold;color:#fff;text-transform:uppercase;letter-spacing:1px;margin:14px 0 4px;padding:8px 12px;border-radius:8px;background:linear-gradient(135deg,#c0392b,#e74c3c);cursor:pointer;box-shadow:0 2px 6px rgba(231,76,60,.25)}
+.cat-header{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;padding-bottom:4px;border-bottom:2px solid #eee;cursor:pointer}
 .cat-header-left{display:flex;align-items:center;gap:6px}
-.cat-total{color:#ffe0de;font-size:12px}
-.exp-list-divider{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:#999;font-size:11px;text-transform:uppercase;letter-spacing:1px}
-.exp-list-divider::before,.exp-list-divider::after{content:"";flex:1;height:1px;background:#e8e4e0}
+.cat-total{color:#e74c3c}
 .subcat-label{font-size:10px;color:#aaa;font-style:italic;padding:2px 0 2px 8px;border-left:2px solid #f0ede9;margin-top:4px}
 .shop-cat-label{font-size:11px;font-weight:bold;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;border-bottom:1px solid #eee;padding-bottom:2px}
 .shop-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0ede9}
@@ -107,6 +105,12 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;flex-shrink:0}
   .card{box-shadow:none!important;border:1px solid #ddd!important}
   #app{max-width:100%!important}
 }
+.day-sep{display:flex;align-items:center;justify-content:space-between;margin:10px 0 4px;padding:5px 8px;background:#f5f2ee;border-radius:6px;border-left:3px solid #e74c3c}
+.day-sep-label{font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;letter-spacing:.5px}
+.day-sep-total{font-size:11px;color:#e74c3c;font-weight:bold}
+.reorder-btns{display:flex;flex-direction:column;gap:1px;flex-shrink:0}
+.reorder-btn{background:#f0ede9;border:none;border-radius:3px;cursor:pointer;font-size:9px;padding:1px 4px;color:#888;line-height:1.4;font-family:Georgia,serif}
+.reorder-btn:hover{background:#ddd;color:#333}
 .rpt-btn{background:#9B59B6;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:Georgia,serif;display:flex;align-items:center;gap:6px}
 .rpt-btn.dark{background:#2c2c2c}
 .rpt-btn.green{background:#27ae60}
@@ -181,6 +185,7 @@ const shiftYM = (ym,dir) => { const [y,m]=ym.split("-").map(Number); const d=new
 const monthLabel = ym => { const [y,m]=ym.split("-"); return `${MONTHS[parseInt(m)-1]} ${y}`; };
 const todayLabel = () => { const d=new Date(); return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 const el = (tag,cls,html) => { const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; };
+const fmtDateITShort = ymd => { if(!ymd) return ""; const [y,m,d]=ymd.split("-"); const dt=new Date(parseInt(y),parseInt(m)-1,parseInt(d)); const gg=DAYS[dt.getDay()]; const mName=["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"][parseInt(m)-1]; return `${gg} ${parseInt(d)} ${mName}`; };
 const inp = (type,ph,val,style) => { const i=document.createElement("input"); i.type=type; i.placeholder=ph||""; i.value=val||""; if(style) i.style.cssText=style; return i; };
 const sel = (opts,val,style) => { const s=document.createElement("select"); if(style) s.style.cssText=style; opts.forEach(o=>{ const op=document.createElement("option"); op.value=o; op.textContent=o; if(o===val) op.selected=true; s.appendChild(op); }); return s; };
 
@@ -455,15 +460,35 @@ function renderBudget() {
     sv.onclick=()=>{if(!iDesc.value||!iAmt.value)return;update(d=>{d.expenses.push({id:uid(),label:iDesc.value,amount:Number(iAmt.value),date:iDate.value,category:sCat.value,subcategory:sSub.value||""});});ui.showAddExp=false;};
     fb.appendChild(iDesc);fb.appendChild(r1);fb.appendChild(catRow);fb.appendChild(sv);expCard.appendChild(fb);
   }
-  const byCategory=cats.map(c=>({cat:c.name,icon:c.icon,items:monthExpenses.filter(x=>x.category===c.name).sort((a,b)=>(b.date||"")>(a.date||"")?1:-1),total:monthExpenses.filter(x=>x.category===c.name).reduce((s,x)=>s+Number(x.amount),0)})).filter(g=>g.items.length>0);
+  const byCategory=cats.map(c=>({cat:c.name,icon:c.icon,items:monthExpenses.filter(x=>x.category===c.name),total:monthExpenses.filter(x=>x.category===c.name).reduce((s,x)=>s+Number(x.amount),0)})).filter(g=>g.items.length>0);
   if(byCategory.length===0)expCard.appendChild(el("div","empty","Nessuna spesa questo mese"));
-  else{const sep=el("div","exp-list-divider","📋 Spese del mese");expCard.appendChild(sep);}
   byCategory.forEach(g=>{
     const expanded=ui.expandedExpCats[g.cat]!==false;
     const ch=el("div","cat-header");const cl=el("div","cat-header-left");cl.appendChild(el("span","",g.icon+" "+g.cat+" ("+g.items.length+")"));
     const cr=el("div","");cr.style.cssText="display:flex;align-items:center;gap:6px";cr.appendChild(el("span","cat-total",fmt(g.total)));cr.appendChild(el("span","",expanded?"▲":"▼"));
     ch.appendChild(cl);ch.appendChild(cr);ch.onclick=()=>{ui.expandedExpCats[g.cat]=!expanded;render();};expCard.appendChild(ch);
-    if(expanded){const bySub={};g.items.forEach(it=>{const s=it.subcategory||"—";if(!bySub[s])bySub[s]=[];bySub[s].push(it);});const hasSubs=Object.keys(bySub).some(s=>s!=="—")||Object.keys(bySub).length>1;if(hasSubs){Object.entries(bySub).forEach(([sub,items])=>{if(sub!=="—")expCard.appendChild(el("div","subcat-label",sub));items.sort((a,b)=>(b.date||"")>(a.date||"")?1:-1).forEach(it=>expCard.appendChild(makeExpRow(it)));});}else g.items.forEach(it=>expCard.appendChild(makeExpRow(it)));}
+    if(expanded){
+      const bySub={};g.items.forEach(it=>{const s=it.subcategory||"—";if(!bySub[s])bySub[s]=[];bySub[s].push(it);});
+      const hasSubs=Object.keys(bySub).some(s=>s!=="—")||Object.keys(bySub).length>1;
+      const allItems=hasSubs?Object.entries(bySub).flatMap(([sub,items])=>items.map(it=>({...it,_sub:sub!=="—"?sub:""}))):g.items.map(it=>({...it,_sub:""}));
+      // group by date, newest first
+      const byDate={};allItems.forEach(it=>{const k=it.date||"";if(!byDate[k])byDate[k]=[];byDate[k].push(it);});
+      const sortedDates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+      sortedDates.forEach(date=>{
+        const dayItems=byDate[date];
+        const dayTotal=dayItems.reduce((s,x)=>s+Number(x.amount),0);
+        const sep=el("div","day-sep");
+        sep.appendChild(el("span","day-sep-label",fmtDateITShort(date)||"—"));
+        sep.appendChild(el("span","day-sep-total",fmt(dayTotal)));
+        expCard.appendChild(sep);
+        if(hasSubs){
+          const subGroups={};dayItems.forEach(it=>{if(!subGroups[it._sub])subGroups[it._sub]=[];subGroups[it._sub].push(it);});
+          Object.entries(subGroups).forEach(([sub,items])=>{if(sub)expCard.appendChild(el("div","subcat-label",sub));items.forEach(it=>expCard.appendChild(makeExpRow(it)));});
+        } else {
+          dayItems.forEach(it=>expCard.appendChild(makeExpRow(it)));
+        }
+      });
+    }
   });
   if(byCategory.length>0){const tl2=el("div","total-line");tl2.innerHTML=`Totale spese: <strong style="color:#e74c3c">${fmt(monthExpenses.reduce((s,x)=>s+Number(x.amount),0))}</strong>`;expCard.appendChild(tl2);}
   frag.appendChild(expCard);
@@ -471,7 +496,7 @@ function renderBudget() {
 }
 
 function makeExpRow(it){
-  const r=el("div","row");const l=el("div","row-left");l.appendChild(el("div","row-main",it.label));l.appendChild(el("div","row-sub",it.date||""));r.appendChild(l);
+  const r=el("div","row");const l=el("div","row-left");l.appendChild(el("div","row-main",it.label));r.appendChild(l);
   const rr=el("div","row-right");rr.appendChild(el("span","row-value",fmt(it.amount)));
   const d=el("button","btn btn-icon","🗑️");d.style.color="#e74c3c";d.onclick=()=>update(dd=>{dd.expenses=dd.expenses.filter(x=>x.id!==it.id);});
   rr.appendChild(d);r.appendChild(rr);return r;
@@ -546,12 +571,18 @@ function renderSettings(){const wrap=el("div");wrap.appendChild(renderCatMgr("�
 
 function renderCatMgr(title,accent,dk,showIcon,uiKey){
   const cats=data[dk]||[];const c=card(title,accent);
-  cats.forEach(cat=>{
+  cats.forEach((cat,idx)=>{
     const sec=el("div","settings-section");const row=el("div","settings-cat-row");
     const btn=el("button","settings-cat-btn");if(showIcon)btn.appendChild(el("span","",cat.icon+" "));btn.appendChild(el("span","",cat.name+" "));btn.appendChild(el("span","settings-cat-count","("+(cat.subs||[]).length+" sottoc.) "+(ui[uiKey]===cat.id?"▲":"▼")));
     btn.onclick=()=>{ui[uiKey]=ui[uiKey]===cat.id?null:cat.id;render();};
+    const rb=el("div","reorder-btns");
+    const ru=el("button","reorder-btn","▲");ru.title="Sposta su";if(idx===0)ru.style.opacity="0.3";
+    ru.onclick=e=>{e.stopPropagation();if(idx===0)return;update(d=>{const arr=[...d[dk]];[arr[idx-1],arr[idx]]=[arr[idx],arr[idx-1]];d[dk]=arr;});};
+    const rd=el("button","reorder-btn","▼");rd.title="Sposta giù";if(idx===cats.length-1)rd.style.opacity="0.3";
+    rd.onclick=e=>{e.stopPropagation();if(idx===cats.length-1)return;update(d=>{const arr=[...d[dk]];[arr[idx],arr[idx+1]]=[arr[idx+1],arr[idx]];d[dk]=arr;});};
+    rb.appendChild(ru);rb.appendChild(rd);
     const db=el("button","btn btn-icon","🗑️");db.style.color="#e74c3c";db.onclick=()=>{if(cats.length<=1){alert("Almeno una categoria.");return;}update(d=>{d[dk]=cats.filter(x=>x.id!==cat.id);});};
-    row.appendChild(btn);row.appendChild(db);sec.appendChild(row);
+    row.appendChild(btn);row.appendChild(rb);row.appendChild(db);sec.appendChild(row);
     if(ui[uiKey]===cat.id){
       const panel=el("div","sub-panel");if(!(cat.subs||[]).length)panel.appendChild(el("div","no-sub","Nessuna sottocategoria"));
       (cat.subs||[]).forEach(sub=>{const sr=el("div","sub-row");sr.appendChild(el("span","","• "+sub));const d2=el("button","btn btn-icon","🗑️");d2.style.color="#e74c3c";d2.onclick=()=>update(d=>{d[dk]=d[dk].map(x=>x.id===cat.id?{...x,subs:(x.subs||[]).filter(s=>s!==sub)}:x);});sr.appendChild(d2);panel.appendChild(sr);});
