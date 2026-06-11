@@ -559,7 +559,7 @@ function BudgetTab({ data, saveData }) {
               </div>
               <div className="form-group">
                 <label>Importo €</label>
-                <input type="number" placeholder="0.00" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} />
+                <input type="number" placeholder="0.00" step="0.01" min="0" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} />
               </div>
             </div>
             <div className="form-row">
@@ -712,7 +712,7 @@ function ScadenzeTab({ data, saveData }) {
             </div>
             <div className="form-group">
               <label>Importo €</label>
-              <input type="number" placeholder="0.00" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} />
+              <input type="number" placeholder="0.00" step="0.01" min="0" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} />
             </div>
           </div>
           <div className="form-row">
