@@ -336,7 +336,7 @@ function App() {
 
   useEffect(() => {
     if (!user) return;
-    const ref = db.collection('fcc').doc(user.uid);
+    const ref = db.collection('users').doc(user.uid);
     const unsub = ref.onSnapshot(snap => {
       if (snap.exists) {
         setData(snap.data());
@@ -363,7 +363,7 @@ function App() {
     setData(merged);
     setSyncing(true);
     try {
-      await db.collection('fcc').doc(user.uid).set(merged);
+      await db.collection('users').doc(user.uid).set(merged);
     } finally {
       setSyncing(false);
     }
