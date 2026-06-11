@@ -3,909 +3,942 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>English Practice</title>
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>Family Control Center</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#9B59B6">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
-  :root {
-    --bg: #faf9f7;
-    --surface: #ffffff;
-    --surface2: #f5f3ef;
-    --border: #e8e4dc;
-    --border2: #d0ccc4;
-    --accent: #2e6a4e;
-    --accent-light: #e8f4ee;
-    --accent-dim: #a8c8b8;
-    --text: #1a1814;
-    --text2: #6a6560;
-    --text3: #a8a49e;
-    --green: #2a7a4a;
-    --green-bg: #eaf5ee;
-    --green-border: #b0d8be;
-    --red: #c0392b;
-    --red-bg: #fdf0ee;
-    --red-border: #e8b0a8;
-    --radius: 10px;
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Outfit', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
+:root {
+  --bg: #f8f5fc;
+  --surface: #ffffff;
+  --surface2: #f2edf8;
+  --border: #e2d9f0;
+  --border2: #c8b8e0;
+  --accent: #9B59B6;
+  --accent-light: #f0e8f8;
+  --accent-dark: #7d3f9e;
+  --text: #1a1520;
+  --text2: #6a5878;
+  --text3: #a898b8;
+  --green: #27ae60;
+  --green-bg: #eafaf1;
+  --green-border: #a9dfbf;
+  --red: #c0392b;
+  --red-bg: #fdf0ee;
+  --red-border: #e8b0a8;
+  --orange: #e67e22;
+  --orange-bg: #fef5ec;
+  --radius: 10px;
+  --shadow: 0 2px 8px rgba(155,89,182,0.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    position: sticky; top: 0; z-index: 100;
-    flex-wrap: wrap; gap: 10px;
-  }
-  .nav-title {
-    font-family: 'Lora', serif;
-    font-size: 18px; color: var(--accent); font-weight: 500;
-  }
-  .nav-tabs { display: flex; gap: 4px; }
-  .tab-btn {
-    padding: 6px 15px; border-radius: 20px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text2);
-    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .tab-btn:hover { color: var(--text); border-color: var(--border2); }
-  .tab-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent-dim); }
-  .score-pill { font-size: 13px; color: var(--text2); display: flex; gap: 14px; align-items: center; }
-  .score-pill span { display: flex; align-items: center; gap: 6px; }
-  .dot { width: 18px; height: 18px; border-radius: 50%; }
-  .dot-g { background: #15883f; }
-  .dot-r { background: #c62117; }
-  .dot-o { background: #c96800; }
+/* NAV */
+nav {
+  background: var(--accent);
+  padding: 0;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(155,89,182,0.3);
+}
+.nav-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+}
+.nav-title { color: #fff; font-size: 17px; font-weight: 700; letter-spacing: 0.3px; }
+.nav-user { color: rgba(255,255,255,0.85); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.nav-tabs {
+  display: flex; overflow-x: auto;
+  padding: 0 8px 0;
+  gap: 2px;
+  scrollbar-width: none;
+}
+.nav-tabs::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 9px 14px; border: none; background: transparent;
+  color: rgba(255,255,255,0.7); font-size: 13px; font-weight: 500;
+  cursor: pointer; border-bottom: 3px solid transparent;
+  white-space: nowrap; transition: all 0.2s; flex-shrink: 0;
+}
+.tab-btn:hover { color: #fff; }
+.tab-btn.active { color: #fff; border-bottom-color: #fff; }
 
-  .section { display: none; padding: 24px; max-width: 760px; margin: 0 auto; }
-  .section.active { display: block; }
+/* SYNC BTN */
+.sync-btn {
+  padding: 5px 11px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.5);
+  background: transparent; color: #fff;
+  font-size: 12px; cursor: pointer; transition: all 0.2s;
+}
+.sync-btn:hover { background: rgba(255,255,255,0.15); }
+.sync-btn.syncing { opacity: 0.6; }
 
-  /* QUIZ */
-  .quiz-controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-  select {
-    padding: 8px 14px; background: var(--surface);
-    border: 1px solid var(--border2); border-radius: var(--radius);
-    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 14px;
-    cursor: pointer; outline: none;
-  }
-  select:focus { border-color: var(--accent); }
+/* LAYOUT */
+.section { display: none; padding: 16px; max-width: 700px; margin: 0 auto; }
+.section.active { display: block; }
 
-  .btn {
-    padding: 8px 18px; border-radius: var(--radius);
-    border: 1px solid var(--border2); background: var(--surface);
-    color: var(--text); font-family: 'Outfit', sans-serif;
-    font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s;
-  }
-  .btn:hover { border-color: var(--accent); color: var(--accent); }
-  .btn.primary {
-    background: var(--accent); color: #fff;
-    border-color: var(--accent); font-weight: 600;
-  }
-  .btn.primary:hover { background: #235a3f; border-color: #235a3f; }
+/* CARDS */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px; margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text); }
 
-  .progress-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 24px; }
-  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+/* FORM ELEMENTS */
+.form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.form-row label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); display: block; margin-bottom: 4px; }
+.form-group { display: flex; flex-direction: column; flex: 1; min-width: 100px; }
+input[type=text], input[type=number], input[type=date], select, textarea {
+  padding: 9px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 15px; font-family: inherit;
+  outline: none; width: 100%; transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; }
 
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 28px; margin-bottom: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  }
+/* BUTTONS */
+.btn {
+  padding: 8px 16px; border-radius: 8px;
+  border: 1px solid var(--border2); background: var(--surface);
+  color: var(--text); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+.btn.danger { border-color: var(--red-border); color: var(--red); }
+.btn.danger:hover { background: var(--red-bg); }
+.btn.small { padding: 4px 10px; font-size: 12px; }
 
-  .card-label { font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
-  .card-word-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
-  .card-word { font-family: 'Lora', serif; font-size: 38px; color: var(--text); }
-  .card-hint { font-size: 15px; color: var(--text3); margin-bottom: 22px; }
+/* BUDGET TAB */
+.budget-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+}
+.month-nav { display: flex; align-items: center; gap: 8px; }
+.month-nav button { background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 16px; color: var(--text2); }
+.month-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.month-label { font-size: 16px; font-weight: 600; min-width: 140px; text-align: center; }
 
-  .fields-grid { display: grid; gap: 12px; }
-  .fields-grid.three { grid-template-columns: 1fr 1fr 1fr; }
-  .fields-grid.one { grid-template-columns: 1fr; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.summary-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 12px; text-align: center;
+  box-shadow: var(--shadow);
+}
+.summary-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin-bottom: 6px; }
+.summary-card .amount { font-size: 20px; font-weight: 700; }
+.summary-card.entrate .amount { color: var(--green); }
+.summary-card.uscite .amount { color: var(--red); }
+.summary-card.saldo .amount { color: var(--accent); }
 
-  .field-wrap { display: flex; flex-direction: column; gap: 5px; }
-  .field-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); }
-  .field-input {
-    padding: 12px 16px; background: var(--surface2);
-    border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 17px;
-    outline: none; transition: border-color 0.2s;
-    -webkit-user-select: text;
-    /* Fix iPhone keyboard */
-    font-size: 16px;
-  }
-  .field-input:focus { border-color: var(--accent); background: #fff; }
-  .field-input.correct { border-color: #4caf7a; background: #e8f8ef; color: #1a6e3a; font-weight: 600; }
-  .field-input.wrong { border-color: #e05555; background: #fdeaea; color: #c0392b; font-weight: 600; }
-  .field-input:disabled { opacity: 1; cursor: default; }
+/* SPESE per giorno */
+.day-group { margin-bottom: 18px; }
+.day-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.day-header .day-total {
+  margin-left: auto;
+  font-size: 13px; font-weight: 700;
+  opacity: 0.9;
+}
+.spesa-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.spesa-cat { font-size: 11px; color: var(--text3); }
+.spesa-desc { flex: 1; font-weight: 500; }
+.spesa-amount { font-weight: 700; color: var(--red); white-space: nowrap; }
+.spesa-delete { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 16px; padding: 2px 4px; border-radius: 4px; }
+.spesa-delete:hover { color: var(--red); background: var(--red-bg); }
 
-  .answer-row { display: flex; gap: 10px; margin-top: 20px; align-items: center; flex-wrap: wrap; }
-  .feedback-msg { font-size: 16px; font-weight: 500; flex: 1; min-height: 20px; }
-  .feedback-msg.correct { color: var(--green); }
-  .feedback-msg.wrong { color: var(--red); }
+.add-spesa-form {
+  background: var(--accent-light); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 14px; margin-bottom: 16px;
+}
 
-  .correct-answer {
-    font-size: 15px; color: var(--text2); margin-top: 10px;
-    padding: 12px 16px; background: var(--red-bg);
-    border-radius: 8px; border-left: 3px solid var(--red-border);
-  }
-  .correct-answer strong { color: var(--red); }
+/* SCADENZE */
+.scad-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 8px;
+}
+.scad-item.pagato { opacity: 0.55; }
+.scad-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.scad-dot.verde { background: var(--green); }
+.scad-dot.arancio { background: var(--orange); }
+.scad-dot.rosso { background: var(--red); }
+.scad-info { flex: 1; }
+.scad-name { font-size: 14px; font-weight: 600; }
+.scad-date { font-size: 12px; color: var(--text3); }
+.scad-amount { font-weight: 700; font-size: 15px; }
 
-  /* Correzione errore di battitura */
-  .fix-typo-wrap {
-    margin-top: 10px;
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-  }
-  .fix-typo-input {
-    padding: 8px 12px; background: var(--surface2);
-    border: 1px solid var(--border2); border-radius: 8px;
-    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px;
-    outline: none; flex: 1; min-width: 120px;
-    font-size: 16px;
-  }
-  .fix-typo-input:focus { border-color: var(--accent); }
-  .fix-typo-label { font-size: 13px; color: var(--text3); }
+/* SPESA (lista) */
+.spesa-lista-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 6px;
+}
+.spesa-lista-item.checked { opacity: 0.5; text-decoration: line-through; }
+.spesa-lista-item input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
 
-  .audio-btn {
-    width: 34px; height: 34px; border-radius: 50%;
-    border: 1px solid var(--border2); background: var(--surface2);
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; transition: all 0.15s;
-  }
-  .audio-btn:hover { border-color: var(--accent); }
-  .audio-btn.playing { background: var(--accent); border-color: var(--accent); }
-  .audio-btn svg { width: 12px; height: 12px; fill: var(--text2); }
-  .audio-btn.playing svg { fill: #fff; }
+/* REPORT */
+.report-cat-bar { margin-bottom: 10px; }
+.report-cat-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+.bar-bg { height: 8px; background: var(--border); border-radius: 4px; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.5s; }
 
-  /* VOCAB TABLE */
-  .vocab-toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
-  .vocab-toolbar input {
-    flex: 1; min-width: 200px; padding: 8px 14px;
-    background: var(--surface); border: 1px solid var(--border2);
-    border-radius: var(--radius); color: var(--text);
-    font-family: 'Outfit', sans-serif; font-size: 14px; outline: none;
-  }
-  .vocab-toolbar input:focus { border-color: var(--accent); }
+/* IMPOSTAZIONI */
+.setting-section { margin-bottom: 20px; }
+.setting-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); margin-bottom: 10px; }
+.cat-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 20px; padding: 4px 10px; margin: 4px;
+  font-size: 13px;
+}
+.cat-chip button { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 14px; line-height: 1; }
+.cat-chip button:hover { color: var(--red); }
 
-  .vocab-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
-  .vocab-table th {
-    text-align: left; font-size: 11px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--text3); padding: 10px 14px;
-    background: var(--surface2); border-bottom: 1px solid var(--border);
-  }
-  .vocab-table td { padding: 11px 14px; font-size: 15px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .vocab-table tr:last-child td { border-bottom: none; }
-  .vocab-table tr:hover td { background: var(--accent-light); }
+/* LOGIN */
+.login-screen {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 80vh; gap: 20px; padding: 24px;
+  text-align: center;
+}
+.login-title { font-size: 28px; font-weight: 700; color: var(--accent); }
+.login-sub { color: var(--text2); font-size: 15px; max-width: 300px; }
+.btn-google {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 24px; border-radius: 10px;
+  border: 1px solid var(--border2); background: var(--surface);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  box-shadow: var(--shadow); transition: all 0.2s;
+}
+.btn-google:hover { box-shadow: 0 4px 16px rgba(155,89,182,0.15); border-color: var(--accent); }
 
-  .badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 4px; }
-  .badge-verb { background: #e8f4ee; color: #2a7a4a; border: 1px solid #b0d8be; }
-  .badge-vocab { background: #eef0f8; color: #4a5a9a; border: 1px solid #b8c0e0; }
+.empty { text-align: center; color: var(--text3); padding: 32px 16px; font-size: 14px; }
+.badge-entrata { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); border-radius: 5px; font-size: 11px; font-weight: 600; padding: 2px 6px; }
+.badge-uscita { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); border-radius: 5px; font-size: 11px; font-weight: 600; padding: 2px 6px; }
 
-  .it-cell { color: var(--text2); }
-  .en-cell { color: var(--text); font-weight: 500; }
-  .past-cell { color: var(--text2); font-size: 13px; }
-
-  .tbl-audio {
-    width: 28px; height: 28px; border-radius: 50%;
-    border: 1px solid var(--border); background: transparent;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
-  }
-  .tbl-audio:hover { border-color: var(--accent); background: var(--accent-light); }
-  .tbl-audio svg { width: 10px; height: 10px; fill: var(--text3); }
-  .tbl-audio:hover svg { fill: var(--accent); }
-
-  /* STATS */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 24px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
-  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 6px; }
-  .stat-value { font-family: 'Lora', serif; font-size: 28px; color: var(--accent); }
-
-  .reset-link { font-size: 13px; color: var(--text3); cursor: pointer; text-decoration: underline; }
-  .reset-link:hover { color: var(--red); }
-
-  /* ERRORS */
-  .errors-toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
-  .errors-toolbar input {
-    flex: 1; min-width: 200px; padding: 8px 14px;
-    background: var(--surface); border: 1px solid var(--border2);
-    border-radius: var(--radius); color: var(--text);
-    font-family: 'Outfit', sans-serif; font-size: 14px; outline: none;
-  }
-  .errors-toolbar input:focus { border-color: var(--accent); }
-
-  .errors-day-group { margin-bottom: 24px; }
-  .errors-day-header {
-    font-size: 12px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--text3);
-    padding: 6px 0 8px; border-bottom: 1px solid var(--border);
-    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
-  }
-  .errors-day-count {
-    background: var(--surface2); color: var(--text3);
-    border-radius: 20px; padding: 2px 8px; font-size: 11px;
-  }
-  .error-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-left: 4px solid var(--red-border);
-    border-radius: var(--radius); padding: 14px 18px;
-    margin-bottom: 10px; display: flex; align-items: center; gap: 16px;
-    flex-wrap: wrap;
-  }
-  .error-card:hover { border-left-color: var(--red); }
-  .error-it { font-size: 16px; font-weight: 500; color: var(--text); width: 180px; flex-shrink: 0; }
-  .error-en { font-size: 15px; color: var(--accent); font-weight: 500; flex: 1; }
-  .error-forms { font-size: 13px; color: var(--text2); margin-top: 2px; }
-  .error-count { font-size: 12px; color: var(--red); font-weight: 600; background: var(--red-bg); padding: 3px 8px; border-radius: 20px; flex-shrink: 0; }
-  .error-date { font-size: 11px; color: var(--text3); flex-shrink: 0; }
-
-  .error-check { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
-  .practice-selected-btn {
-    display: none; padding: 10px 20px; background: var(--accent); color: #fff;
-    border: none; border-radius: var(--radius); font-family: 'Outfit', sans-serif;
-    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 16px;
-  }
-  .practice-selected-btn:hover { background: #235a3f; }
-  .select-all-wrap { font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 8px; margin-bottom: 12px; cursor: pointer; }
-  .empty-errors { text-align: center; padding: 48px 24px; color: var(--text3); font-size: 15px; }
-  .empty-errors span { font-size: 32px; display: block; margin-bottom: 10px; }
-
-  /* FOOTER */
-  .app-footer {
-    text-align: center; padding: 32px 24px 24px;
-    font-size: 12px; color: var(--text3);
-    border-top: 1px solid var(--border); margin-top: 40px;
-  }
-  .app-footer a { color: var(--accent-dim); text-decoration: none; }
-  .app-footer a:hover { color: var(--accent); }
-
-
-
-
-  @media (max-width: 560px) {
-    .fields-grid.three { grid-template-columns: 1fr; }
-    .card-word { font-size: 24px; }
-    nav { flex-wrap: wrap; gap: 8px; }
-  }
+/* Entrate list */
+.entrata-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: var(--green-bg);
+  border: 1px solid var(--green-border); border-radius: 8px;
+  margin-bottom: 6px;
+}
+.entrata-item .spesa-desc { color: var(--green); }
+.entrata-item .spesa-amount { color: var(--green); }
 </style>
 </head>
 <body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
 
-<nav>
-  <span class="nav-title">English Practice · <span style="font-size:13px;font-weight:400;color:var(--text2)">by Claude</span></span>
-  <div class="nav-tabs">
-    <button class="tab-btn active" onclick="showSection('quiz', this)">Quiz</button>
-    <button class="tab-btn" onclick="showSection('vocab', this)">Vocabolario</button>
-    <button class="tab-btn" onclick="showSection('errors', this)">I miei errori <span id="nav-err-count"></span></button>
-    <button class="tab-btn" onclick="showSection('stats', this)">Statistiche</button>
-  </div>
-  <div id="word-count" style="font-size:12px;color:var(--text3);font-family:monospace;">caricamento...</div>
-  <div class="score-pill">
-    <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
-    <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
-    <span><span class="dot dot-o"></span><span id="nav-skip">0</span></span>
-  </div>
-</nav>
+// ── FIREBASE CONFIG ────────────────────────────────────────────────────────────
+// ⚠️ SOSTITUISCI questi valori con le tue credenziali Firebase
+// Le trovi su: console.firebase.google.com → Il tuo progetto → Impostazioni → Le tue app
+const firebaseConfig = {
+  apiKey: "AIzaSyDWcRC7Zf8NX2OJU197UVvZ23Gy6_SWQtw",
+  authDomain: "family-control-center-4ae38.firebaseapp.com",
+  projectId: "family-control-center-4ae38",
+  storageBucket: "family-control-center-4ae38.firebasestorage.app",
+  messagingSenderId: "722999772560",
+  appId: "1:722999772560:web:f06617ba41dee3f9ebdf15"
+};
 
-<!-- QUIZ -->
-<div class="section active" id="sec-quiz">
-  <div class="quiz-controls">
-    <input type="text" id="quiz-search" placeholder="Cerca parola..." style="padding:8px 14px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none;width:160px;" oninput="searchWord()" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'">
-    <select id="mode-select" onchange="resetQuiz()">
-      <option value="all">Tutto (verbi + vocaboli)</option>
-      <option value="verbs">Solo verbi irregolari</option>
-      <option value="vocab">Solo vocaboli</option>
-    </select>
-    <select id="order-select" onchange="resetQuiz()">
-      <option value="random">Ordine casuale</option>
-      <option value="sequential">Ordine originale</option>
-    </select>
-    <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
-  </div>
-  <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
-  <div class="card" id="quiz-card">
-    <div class="card-label" id="q-label">Traduci in inglese</div>
-    <div class="card-word-row" id="word-row">
-      <div class="card-word" id="q-word">—</div>
-      <button class="audio-btn" id="q-audio-btn" onclick="speakCurrent()" title="Ascolta risposta" style="display:none">
-        <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
+
+// ── UTILS ──────────────────────────────────────────────────────────────────────
+function localDateStr(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function formatEuro(n) {
+  return '€ ' + Number(n || 0).toFixed(2).replace('.', ',');
+}
+function monthLabel(y, m) {
+  return new Date(y, m - 1, 1).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+}
+function dayLabel(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((today - date) / 86400000);
+  if (diff === 0) return 'Oggi';
+  if (diff === 1) return 'Ieri';
+  return date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+function scadenzaColor(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((date - today) / 86400000);
+  if (diff < 0) return 'rosso';
+  if (diff <= 5) return 'arancio';
+  return 'verde';
+}
+
+// ── DEFAULT DATA ───────────────────────────────────────────────────────────────
+const DEFAULT_CATS = ['Casa', 'Cibo', 'Trasporti', 'Salute', 'Svago', 'Abbigliamento', 'Altro'];
+const DEFAULT_SPESA_CATS = ['Frutta e Verdura', 'Carne e Pesce', 'Latticini', 'Pane e Cereali', 'Bevande', 'Pulizia', 'Altro'];
+
+// ── MAIN APP ───────────────────────────────────────────────────────────────────
+function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('budget');
+  const [syncing, setSyncing] = useState(false);
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => {
+      setUser(u);
+      setLoading(false);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const ref = db.collection('fcc').doc(user.uid);
+    const unsub = ref.onSnapshot(snap => {
+      if (snap.exists) {
+        setData(snap.data());
+      } else {
+        const init = {
+          spese: [],
+          entrate: [],
+          scadenze: [],
+          listaSpesa: [],
+          categorie: DEFAULT_CATS,
+          categorieLista: DEFAULT_SPESA_CATS,
+          budgetMensile: 2000,
+        };
+        ref.set(init);
+        setData(init);
+      }
+    });
+    return unsub;
+  }, [user]);
+
+  async function saveData(newData) {
+    if (!user) return;
+    const merged = { ...data, ...newData };
+    setData(merged);
+    setSyncing(true);
+    try {
+      await db.collection('fcc').doc(user.uid).set(merged);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function login() { auth.signInWithPopup(provider); }
+  function logout() { auth.signOut(); setData(null); }
+
+  if (loading) return <div style={{textAlign:'center',padding:'60px',color:'var(--text3)'}}>Caricamento...</div>;
+
+  if (!user) return (
+    <div className="login-screen">
+      <div style={{fontSize:'48px'}}>💜</div>
+      <div className="login-title">Family Control Center</div>
+      <div className="login-sub">Accedi per gestire budget, spese, scadenze e lista della spesa</div>
+      <button className="btn-google" onClick={login}>
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Accedi con Google
       </button>
     </div>
-    <div class="card-hint" id="q-hint"></div>
-    <div class="fields-grid one" id="fields-grid"></div>
-    <div class="answer-row">
-      <div class="feedback-msg" id="feedback"></div>
-      <button class="btn" id="skip-btn" type="button" onclick="skipWord()">Salta</button>
-      <button class="btn primary" id="check-btn" type="button" onclick="checkAnswer()">Controlla</button>
-      <button class="btn primary" id="next-btn" type="button" onclick="nextWord()" style="display:none">Avanti →</button>
+  );
+
+  if (!data) return <div style={{textAlign:'center',padding:'60px',color:'var(--text3)'}}>Caricamento dati...</div>;
+
+  const tabs = [
+    { id: 'budget', label: '💰 Budget' },
+    { id: 'scadenze', label: '📅 Scadenze' },
+    { id: 'spesa', label: '🛒 Spesa' },
+    { id: 'report', label: '📊 Report' },
+    { id: 'impostazioni', label: '⚙️ Impostazioni' },
+  ];
+
+  return (
+    <div>
+      <nav>
+        <div className="nav-top">
+          <div className="nav-title">💜 Family CC</div>
+          <div className="nav-user">
+            <span style={{display:'none',fontSize:'12px'}}>{user.displayName?.split(' ')[0]}</span>
+            <button className={`sync-btn${syncing?' syncing':''}`} onClick={logout}>
+              {syncing ? '🔄 Sync...' : '☁️ Esci'}
+            </button>
+          </div>
+        </div>
+        <div className="nav-tabs">
+          {tabs.map(t => (
+            <button key={t.id} className={`tab-btn${tab===t.id?' active':''}`} onClick={() => setTab(t.id)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {tab === 'budget' && <BudgetTab data={data} saveData={saveData} />}
+      {tab === 'scadenze' && <ScadenzeTab data={data} saveData={saveData} />}
+      {tab === 'spesa' && <SpesaTab data={data} saveData={saveData} />}
+      {tab === 'report' && <ReportTab data={data} />}
+      {tab === 'impostazioni' && <ImpostazioniTab data={data} saveData={saveData} />}
     </div>
-    <div id="correct-reveal"></div>
-    <div id="fix-typo-area"></div>
-  </div>
-</div>
-
-<!-- VOCABOLARIO -->
-<div class="section" id="sec-vocab">
-  <div class="vocab-toolbar">
-    <input type="text" id="vocab-search" placeholder="Cerca in italiano o inglese..." oninput="renderVocabTable()">
-    <select id="vocab-filter" onchange="renderVocabTable()">
-      <option value="all">Tutto</option>
-      <option value="verbs">Solo verbi</option>
-      <option value="vocab">Solo vocaboli</option>
-    </select>
-  </div>
-  <table class="vocab-table">
-    <thead>
-      <tr>
-        <th>Tipo</th><th>Italiano</th><th>Base / Inglese</th><th>Past</th><th>Participle</th><th></th>
-      </tr>
-    </thead>
-    <tbody id="vocab-tbody"></tbody>
-  </table>
-</div>
-
-<!-- ERRORI -->
-<div class="section" id="sec-errors">
-  <div class="errors-toolbar">
-    <input type="text" id="errors-search" placeholder="Cerca negli errori..." oninput="renderErrors()">
-    <select id="errors-filter" onchange="renderErrors()">
-      <option value="all">Tutti</option>
-      <option value="verb">Solo verbi</option>
-      <option value="vocab">Solo vocaboli</option>
-    </select>
-    <button class="btn" type="button" onclick="sortErrors()" id="sort-btn">Più recenti prima</button>
-  </div>
-  <label class="select-all-wrap" id="select-all-wrap" style="display:none;">
-    <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)"> Seleziona tutti
-  </label>
-  <div id="errors-list"></div>
-  <button class="practice-selected-btn" id="practice-selected-btn" onclick="practiceSelected()">▶ Esercitati con i selezionati</button>
-  <div style="margin-top:16px; display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
-    <span class="reset-link" onclick="deleteOldErrors()">Elimina errori più vecchi di 10 giorni</span>
-    <span class="reset-link" onclick="resetErrors()">Azzera tutti gli errori</span>
-  </div>
-</div>
-
-<!-- STATISTICHE -->
-<div class="section" id="sec-stats">
-  <div class="stats-grid">
-    <div class="stat-card"><div class="stat-label">Risposte giuste</div><div class="stat-value" id="st-ok">0</div></div>
-    <div class="stat-card"><div class="stat-label">Risposte sbagliate</div><div class="stat-value" id="st-ko">0</div></div>
-    <div class="stat-card"><div class="stat-label">Totale domande</div><div class="stat-value" id="st-tot">0</div></div>
-    <div class="stat-card"><div class="stat-label">Percentuale</div><div class="stat-value" id="st-pct">—</div></div>
-  </div>
-  <p style="font-size:13px;color:var(--text3);margin-bottom:24px;">Le statistiche vengono salvate automaticamente nel browser.</p>
-  <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
-</div>
-
-<script>
-const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
-
-const RAW_BUILTIN = []; // Tutti i termini provengono dal Google Sheet
-
-let RAW = [...RAW_BUILTIN];
-let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
-let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
-
-// Carica parole da Google Sheets (se pubblico)
-async function loadFromSheet() {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Foglio1`;
-    const res = await fetch(url);
-    if (!res.ok) return;
-    const text = await res.text();
-
-    // Parser CSV robusto: gestisce virgolette, virgole interne e \r\n
-    function parseCSVRow(row) {
-      // Rimuovi \r finale se presente
-      if (row.endsWith('\r')) row = row.slice(0, -1);
-      const cols = [];
-      let cur = '', inQ = false;
-      for (let i = 0; i < row.length; i++) {
-        const c = row[i];
-        if (c === '"') {
-          // Doppia virgoletta dentro stringa quotata = virgoletta letterale
-          if (inQ && row[i+1] === '"') { cur += '"'; i++; }
-          else { inQ = !inQ; }
-        } else if (c === ',' && !inQ) {
-          cols.push(cur.trim());
-          cur = '';
-        } else {
-          cur += c;
-        }
-      }
-      cols.push(cur.trim());
-      return cols;
-    }
-
-    // Normalizza fine riga e dividi — gestisce sia \r\n che \n
-    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const rows = normalized.trim().split('\n').slice(2); // salta 2 righe di intestazione
-
-    const loaded = [];
-    const seen = new Set();
-    let skippedEmpty = 0;
-
-    for (const row of rows) {
-      if (!row.trim()) continue; // salta righe vuote
-      const cols = parseCSVRow(row);
-      // Rimuove virgolette esterne residue e spazi
-      const clean = c => (c || '').replace(/^"|"$/g, '').trim();
-
-      const it   = clean(cols[0]);  // A = italiano
-      const base = clean(cols[5]);  // F = forma base inglese
-      const past = clean(cols[6]);  // G = past simple (solo verbi)
-      const part = clean(cols[7]);  // H = past participle (solo verbi)
-      const typeRaw = clean(cols[12]); // M = tipo: V o W
-
-      if (!it || !base) { skippedEmpty++; continue; }
-
-      const key = it.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-
-      // Legge il tipo dalla colonna M: V=verbo, W=vocabolo
-      // Fallback: se M non è presente, usa presenza di G come indicatore
-      const type = (typeRaw.toUpperCase() === 'V') ? 'verb'
-                 : (typeRaw.toUpperCase() === 'W') ? 'vocab'
-                 : (past ? 'verb' : 'vocab');
-
-      loaded.push({
-        it,
-        base,
-        past: (type === 'verb' && past) ? past : null,
-        part: (type === 'verb' && part) ? part : null,
-        type
-      });
-    }
-
-    console.log(`[Sheet] Righe totali: ${rows.length}, caricate: ${loaded.length}, saltate vuote: ${skippedEmpty}`);
-
-    if (loaded.length > 0) {
-      RAW = loaded;
-      const verbs = loaded.filter(w => w.type === 'verb').length;
-      const vocab = loaded.filter(w => w.type === 'vocab').length;
-      document.getElementById('word-count').textContent = `${loaded.length} parole (${verbs} verbi, ${vocab} vocaboli)`;
-      resetQuiz();
-      renderVocabTable();
-    }
-  } catch(e) {
-    console.error('[Sheet] Errore caricamento:', e);
-  }
+  );
 }
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
-  return a;
-}
-
-function searchWord() {
-  const q = document.getElementById('quiz-search').value.toLowerCase().trim();
-  if (!q) return;
-  const idx = deck.findIndex(w => w.it.toLowerCase().includes(q) || w.base.toLowerCase().includes(q));
-  if (idx !== -1) {
-    currentIdx = idx;
-    answered = false;
-    showWord();
-    document.getElementById('quiz-search').value = '';
-    document.getElementById('quiz-search').blur();
-  } else {
-    document.getElementById('quiz-search').style.borderColor = 'var(--red)';
-    setTimeout(() => document.getElementById('quiz-search').style.borderColor = 'var(--border2)', 1000);
-  }
-}
-
-function resetQuiz() {
-  const mode = document.getElementById('mode-select').value;
-  const order = document.getElementById('order-select').value;
-  let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
-  deck = order==='random' ? shuffle(words) : [...words];
-  currentIdx = 0; answered = false;
-  showWord();
-}
-
-// Ricomincia: azzera stats e forza ordine casuale
-function doResetQuiz() {
-  stats = {ok:0, ko:0};
-  saveStats();
-  updateNavScore();
-  // Forza ordine casuale indipendentemente dal selettore
-  const mode = document.getElementById('mode-select').value;
-  let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
-  deck = shuffle(words);
-  currentIdx = 0; answered = false;
-  showWord();
-}
-
-function showWord() {
-  if (currentIdx >= deck.length) { showFinished(); return; }
-  answered = false;
-  const w = deck[currentIdx];
-  const isVerb = w.type==='verb';
-  document.getElementById('q-label').textContent = isVerb ? 'Scrivi le tre forme del verbo' : 'Traduci in inglese';
-  document.getElementById('q-word').textContent = w.it;
-
-  document.getElementById('q-hint').textContent = isVerb ? 'Base form · Past simple · Past participle' : '';
-  const grid = document.getElementById('fields-grid');
-  grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
-  const inputAttrs = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text"';
-  grid.innerHTML = isVerb
-    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs} onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs} onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs} onkeydown="handleKey(event)"></div>`
-    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs} onkeydown="handleKey(event)"></div>`;
-  document.getElementById('feedback').textContent = '';
-  document.getElementById('feedback').className = 'feedback-msg';
-  document.getElementById('correct-reveal').innerHTML = '';
-  document.getElementById('fix-typo-area').innerHTML = '';
-  document.getElementById('check-btn').style.display = 'inline-block';
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('skip-btn').style.display = 'inline-block';
-  document.getElementById('q-audio-btn').style.display = 'none';
-  currentAudioText = '';
-  updateProgress();
-  setTimeout(() => { const el = document.getElementById('f-base'); if(el) el.focus(); }, 100);
-}
-
-function norm(s) { return s.trim().toLowerCase(); }
-
-// Controlla risposta accettando alternative separate da /
-function chkMulti(userVal, correct) {
-  const alternatives = correct.split(/[,/]/).map(a => norm(a.trim()));
-  return alternatives.includes(norm(userVal));
-}
-
-function checkAnswer() {
-  if (answered) return;
-  const w = deck[currentIdx];
-  const isVerb = w.type==='verb';
-  let allCorrect = true;
-  const parts = [];
-
-  function chk(id, correct) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const ok = chkMulti(el.value, correct);
-    el.classList.add(ok ? 'correct' : 'wrong');
-    el.disabled = true;
-    if (!ok) allCorrect = false;
-    parts.push(correct);
-  }
-  chk('f-base', w.base);
-  if (isVerb) { chk('f-past', w.past); chk('f-part', w.part); }
-
-  answered = true;
-  currentAudioText = parts.join(', ');
-  document.getElementById('check-btn').style.display = 'none';
-  document.getElementById('skip-btn').style.display = 'none';
-
-  if (allCorrect) {
-    stats.ok++;
-    document.getElementById('feedback').textContent = '✓ Corretto!';
-    document.getElementById('feedback').className = 'feedback-msg correct';
-    document.getElementById('q-audio-btn').style.display = 'flex';
-    document.getElementById('next-btn').style.display = 'inline-block';
-    saveStats(); updateNavScore();
-    speakCurrent();
-    setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
-  } else {
-    stats.ko++;
-    document.getElementById('feedback').textContent = '✗ Sbagliato';
-    document.getElementById('feedback').className = 'feedback-msg wrong';
-    const rev = document.getElementById('correct-reveal');
-    rev.innerHTML = isVerb
-      ? `<div class="correct-answer">Risposta corretta: <strong>${w.base}</strong> · <strong>${w.past}</strong> · <strong>${w.part}</strong></div>`
-      : `<div class="correct-answer">Risposta corretta: <strong>${w.base}</strong></div>`;
-    document.getElementById('q-audio-btn').style.display = 'flex';
-    document.getElementById('next-btn').style.display = 'inline-block';
-
-    // Correzione errore di battitura
-    const fixArea = document.getElementById('fix-typo-area');
-    fixArea.innerHTML = `<div class="fix-typo-wrap">
-      <span class="fix-typo-label">Era un errore di battitura?</span>
-      <button class="btn" onclick="markAsCorrect()" style="font-size:13px;padding:6px 12px;">✓ Segna come corretto</button>
-    </div>`;
-
-    saveError(w);
-    saveStats(); updateNavScore();
-  }
-}
-
-function markAsCorrect() {
-  // Annulla l'errore e segna come corretto
-  stats.ko = Math.max(0, stats.ko - 1);
-  stats.ok++;
-  const w = deck[currentIdx];
-  // Rimuovi dall'errorLog
-  errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
-  updateErrCount();
-  saveStats(); updateNavScore();
-  document.getElementById('feedback').textContent = '✓ Corretto!';
-  document.getElementById('feedback').className = 'feedback-msg correct';
-  document.getElementById('correct-reveal').innerHTML = '';
-  document.getElementById('fix-typo-area').innerHTML = '';
-}
-
-function handleKey(e) {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    if (!answered) checkAnswer(); else nextWord();
-  }
-}
-function skipWord() {
-  const w = deck[currentIdx];
-  if (w) saveSkipped(w);
-  currentIdx++;
-  updateNavScore();
-  showWord();
-}
-function nextWord() { currentIdx++; showWord(); }
-
-function showFinished() {
-  document.getElementById('q-label').textContent = 'Hai completato tutti i termini!';
-  document.getElementById('q-word').textContent = '🎉';
-  document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
-  document.getElementById('fields-grid').innerHTML = '';
-  document.getElementById('feedback').textContent = '';
-  document.getElementById('correct-reveal').innerHTML = '';
-  document.getElementById('fix-typo-area').innerHTML = '';
-  document.getElementById('check-btn').style.display = 'none';
-  document.getElementById('skip-btn').style.display = 'none';
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('q-audio-btn').style.display = 'none';
-  document.getElementById('progress-bar').style.width = '100%';
-}
-
-function updateProgress() {
-  document.getElementById('progress-bar').style.width = (deck.length ? (currentIdx/deck.length)*100 : 0) + '%';
-}
-
-function speakCurrent() { if(currentAudioText) speakText(currentAudioText, document.getElementById('q-audio-btn')); }
-
-function speakText(text, btn) {
-  window.speechSynthesis.cancel();
-  if(currentSpeakBtn) currentSpeakBtn.classList.remove('playing');
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang='en-US'; u.rate=0.85; u.pitch=0.9;
-  const voices = window.speechSynthesis.getVoices();
-  // Preferisci voce femminile en-US
-  const femaleVoice = voices.find(v => v.lang === 'en-US' && /allison|female|samantha|karen|victoria|moira|fiona|serena|zira|susan|amy|emma|joanna|salli|kimberly|kendra/i.test(v.name))
-    || voices.find(v => v.lang === 'en-GB' && /female|kate|amy/i.test(v.name))
-    || voices.find(v => v.lang.startsWith('en') && /female|samantha|karen/i.test(v.name))
-    || voices.find(v => v.lang === 'en-US')
-    || voices.find(v => v.lang.startsWith('en'));
-  if(femaleVoice) u.voice = femaleVoice;
-  btn.classList.add('playing'); currentSpeakBtn=btn;
-  u.onend=()=>btn.classList.remove('playing');
-  u.onerror=()=>btn.classList.remove('playing');
-  window.speechSynthesis.speak(u);
-}
-
-function renderVocabTable() {
-  const q = document.getElementById('vocab-search').value.toLowerCase();
-  const f = document.getElementById('vocab-filter').value;
-  let words = RAW;
-  if(f==='verbs') words=words.filter(w=>w.type==='verb');
-  if(f==='vocab') words=words.filter(w=>w.type==='vocab');
-  if(q) words=words.filter(w=>w.it.toLowerCase().includes(q)||w.base.toLowerCase().includes(q));
-  document.getElementById('vocab-tbody').innerHTML = words.map(w => {
-    const sp = w.type==='verb' ? `${w.base}, ${w.past}, ${w.part}` : w.base;
-    return `<tr>
-      <td><span class="badge ${w.type==='verb'?'badge-verb':'badge-vocab'}">${w.type==='verb'?'verbo':'vocab'}</span></td>
-      <td class="it-cell">${w.it}</td>
-      <td class="en-cell">${w.base}</td>
-      <td class="past-cell">${w.past||'—'}</td>
-      <td class="past-cell">${w.part||'—'}</td>
-      <td><button class="tbl-audio" onclick="speakText('${sp.replace(/'/g,"\\'")}',this)" title="Ascolta">
-        <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
-      </button></td>
-    </tr>`;
-  }).join('');
-}
-
-function saveStats() { localStorage.setItem('ep_stats2', JSON.stringify(stats)); }
-
-// ERRORS
-let errorLog = JSON.parse(localStorage.getItem('ep_errors') || '[]');
-let errorsSortDesc = true;
-
-function saveSkipped(w) {
-  const key = w.it + '|' + w.type;
-  const existing = errorLog.find(e => e.key === key);
-  if (existing) return; // already in errors, don't add as skipped
-  const skipped = errorLog.find(e => e.key === key + '|skipped');
-  if (skipped) {
-    skipped.count++;
-    skipped.lastDate = new Date().toLocaleDateString('it-IT');
-  } else {
-    errorLog.push({
-      key: key + '|skipped',
-      it: w.it, base: w.base,
-      past: w.past || null, part: w.part || null,
-      type: w.type, count: 1,
-      skipped: true,
-      lastDate: new Date().toLocaleDateString('it-IT')
-    });
-  }
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
-  updateErrCount();
-}
-
-function saveError(w) {
-  const key = w.it + '|' + w.type;
-  const existing = errorLog.find(e => e.key === key);
-  if (existing) {
-    existing.count++;
-    existing.lastDate = new Date().toLocaleDateString('it-IT');
-  } else {
-    errorLog.push({
-      key, it: w.it, base: w.base,
-      past: w.past || null, part: w.part || null,
-      type: w.type, count: 1,
-      lastDate: new Date().toLocaleDateString('it-IT')
-    });
-  }
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
-  updateErrCount();
-}
-
-function updateErrCount() {
-  const el = document.getElementById('nav-err-count');
-  el.textContent = errorLog.length > 0 ? `(${errorLog.length})` : '';
-}
-
-function sortErrors() {
-  errorsSortDesc = !errorsSortDesc;
-  document.getElementById('sort-btn').textContent = errorsSortDesc ? 'Più recenti prima' : 'Più frequenti prima';
-  renderErrors();
-}
-
-function renderErrors() {
-  const q = document.getElementById('errors-search').value.toLowerCase();
-  const f = document.getElementById('errors-filter').value;
-  let list = [...errorLog];
-  if (f === 'verb') list = list.filter(e => e.type === 'verb');
-  if (f === 'vocab') list = list.filter(e => e.type === 'vocab');
-  if (q) list = list.filter(e => e.it.toLowerCase().includes(q) || e.base.toLowerCase().includes(q));
-
-  const container = document.getElementById('errors-list');
-  if (list.length === 0) {
-    container.innerHTML = `<div class="empty-errors"><span>🎉</span>${q || f !== 'all' ? 'Nessun risultato trovato.' : 'Nessun errore ancora — ottimo lavoro!'}</div>`;
-    document.getElementById('select-all-wrap').style.display = 'none';
-    document.getElementById('practice-selected-btn').style.display = 'none';
-    return;
-  }
-
+// ── BUDGET TAB ─────────────────────────────────────────────────────────────────
+function BudgetTab({ data, saveData }) {
   const today = new Date();
-  const groups = {};
-  const labels = [];
-  for (let i = 0; i < 10; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toLocaleDateString('it-IT');
-    const label = i === 0 ? 'Oggi' : i === 1 ? 'Ieri' : d.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'});
-    groups[key] = { label, items: [] };
-    labels.push(key);
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
+  const [showAddSpesa, setShowAddSpesa] = useState(false);
+  const [showAddEntrata, setShowAddEntrata] = useState(false);
+  const [form, setForm] = useState({ desc: '', amount: '', cat: '', date: localDateStr() });
+  const [formE, setFormE] = useState({ desc: '', amount: '', date: localDateStr() });
+
+  function prevMonth() {
+    if (month === 1) { setMonth(12); setYear(y => y - 1); }
+    else setMonth(m => m - 1);
   }
-  groups['vecchi'] = { label: 'Più vecchi', items: [] };
-  for (const e of list) {
-    if (groups[e.lastDate]) groups[e.lastDate].items.push(e);
-    else groups['vecchi'].items.push(e);
+  function nextMonth() {
+    if (month === 12) { setMonth(1); setYear(y => y + 1); }
+    else setMonth(m => m + 1);
   }
 
-  let html = '';
-  for (const key of [...labels, 'vecchi']) {
-    const g = groups[key];
-    if (!g.items.length) continue;
-    g.items.sort((a, b) => b.count - a.count);
-    html += `<div class="errors-day-group"><div class="errors-day-header">${g.label}<span class="errors-day-count">${g.items.length} ${g.items.length === 1 ? 'errore' : 'errori'}</span></div>`;
-    for (const e of g.items) {
-      const sp = e.type === 'verb' ? `${e.base}, ${e.past}, ${e.part}` : e.base;
-      const spSafe = sp.replace(/'/g, "\'");
-      html += `<div class="error-card">
-        <input type="checkbox" class="error-check" data-key="${e.key}" onchange="updatePracticeBtn()">
-        <div><div class="error-it">${e.it}</div><div class="error-forms">${e.type === 'verb' ? 'verbo' : 'vocabolo'}</div></div>
-        <div style="flex:1"><div class="error-en">${e.base}</div>${e.type === 'verb' ? `<div class="error-forms">${e.past} · ${e.part}</div>` : ''}</div>
-        <button class="tbl-audio" onclick="speakText('${spSafe}', this)" title="Ascolta"><svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg></button>
-        ${e.skipped ? '<span class="error-count" style="background:var(--accent-light);color:var(--accent);border:1px solid var(--accent-dim)">Saltato</span>' : '<span class="error-count">'+e.count+'× sbagliato</span>'}
-      </div>`;
-    }
-    html += '</div>';
-  }
-  container.innerHTML = html;
-  document.getElementById('select-all-wrap').style.display = 'flex';
-  updatePracticeBtn();
-}
-function deleteOldErrors() {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 10);
-  const before = errorLog.length;
-  errorLog = errorLog.filter(e => {
-    if (!e.lastDate) return false;
-    const parts = e.lastDate.split('/');
-    if (parts.length !== 3) return false;
-    const d = new Date(parts[2], parts[1]-1, parts[0]);
-    return d >= cutoff;
+  const speseMese = (data.spese || []).filter(s => {
+    const [sy, sm] = s.date.split('-').map(Number);
+    return sy === year && sm === month;
   });
-  const removed = before - errorLog.length;
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
-  updateErrCount();
-  renderErrors();
-  if (removed > 0) alert(`Eliminati ${removed} errori più vecchi di 10 giorni.`);
-  else alert('Nessun errore più vecchio di 10 giorni.');
+  const entrateMese = (data.entrate || []).filter(e => {
+    const [ey, em] = e.date.split('-').map(Number);
+    return ey === year && em === month;
+  });
+
+  const totSpese = speseMese.reduce((a, s) => a + Number(s.amount), 0);
+  const totEntrate = entrateMese.reduce((a, e) => a + Number(e.amount), 0);
+  const saldo = totEntrate - totSpese;
+
+  // Raggruppa spese per giorno, ordine cronologico inverso (giorno più recente in cima)
+  const spesePorGiorno = {};
+  for (const s of speseMese) {
+    if (!spesePorGiorno[s.date]) spesePorGiorno[s.date] = [];
+    spesePorGiorno[s.date].push(s);
+  }
+  // Ordina le chiavi (giorni) dal più recente al più vecchio
+  const giorniOrdinati = Object.keys(spesePorGiorno).sort((a, b) => b.localeCompare(a));
+  // Ordina le spese dentro ogni giorno: più recente in cima (usa id/timestamp)
+  for (const g of giorniOrdinati) {
+    spesePorGiorno[g].sort((a, b) => (b.id || 0) - (a.id || 0));
+  }
+
+  function addSpesa() {
+    if (!form.desc || !form.amount) return;
+    const s = { id: Date.now(), desc: form.desc, amount: Number(form.amount), cat: form.cat || 'Altro', date: form.date };
+    saveData({ spese: [...(data.spese || []), s] });
+    setForm({ desc: '', amount: '', cat: '', date: localDateStr() });
+    setShowAddSpesa(false);
+  }
+  function deleteSpesa(id) {
+    saveData({ spese: (data.spese || []).filter(s => s.id !== id) });
+  }
+  function addEntrata() {
+    if (!formE.desc || !formE.amount) return;
+    const e = { id: Date.now(), desc: formE.desc, amount: Number(formE.amount), date: formE.date };
+    saveData({ entrate: [...(data.entrate || []), e] });
+    setFormE({ desc: '', amount: '', date: localDateStr() });
+    setShowAddEntrata(false);
+  }
+  function deleteEntrata(id) {
+    saveData({ entrate: (data.entrate || []).filter(e => e.id !== id) });
+  }
+
+  return (
+    <div className="section active">
+      <div className="budget-header">
+        <div className="month-nav">
+          <button onClick={prevMonth}>‹</button>
+          <div className="month-label">{monthLabel(year, month)}</div>
+          <button onClick={nextMonth}>›</button>
+        </div>
+      </div>
+
+      <div className="summary-grid">
+        <div className="summary-card entrate">
+          <div className="label">Entrate</div>
+          <div className="amount">{formatEuro(totEntrate)}</div>
+        </div>
+        <div className="summary-card uscite">
+          <div className="label">Uscite</div>
+          <div className="amount">{formatEuro(totSpese)}</div>
+        </div>
+        <div className="summary-card saldo">
+          <div className="label">Saldo</div>
+          <div className="amount" style={{color: saldo >= 0 ? 'var(--green)' : 'var(--red)'}}>{formatEuro(saldo)}</div>
+        </div>
+      </div>
+
+      {/* SPESE */}
+      <div className="card">
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+          <div className="card-title" style={{marginBottom:0}}>💸 Spese</div>
+          <button className="btn primary small" onClick={() => setShowAddSpesa(v => !v)}>
+            {showAddSpesa ? '✕ Annulla' : '+ Aggiungi'}
+          </button>
+        </div>
+
+        {showAddSpesa && (
+          <div className="add-spesa-form">
+            <div className="form-row">
+              <div className="form-group" style={{flex:2}}>
+                <label>Descrizione</label>
+                <input type="text" placeholder="Es. Supermercato" value={form.desc} onChange={e => setForm(f => ({...f, desc: e.target.value}))} />
+              </div>
+              <div className="form-group">
+                <label>Importo €</label>
+                <input type="number" placeholder="0.00" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Categoria</label>
+                <select value={form.cat} onChange={e => setForm(f => ({...f, cat: e.target.value}))}>
+                  <option value="">Seleziona...</option>
+                  {(data.categorie || DEFAULT_CATS).map(c => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Data</label>
+                <input type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} />
+              </div>
+            </div>
+            <button className="btn primary" onClick={addSpesa}>💾 Salva spesa</button>
+          </div>
+        )}
+
+        {giorniOrdinati.length === 0 && <div className="empty">Nessuna spesa questo mese</div>}
+
+        {giorniOrdinati.map(giorno => (
+          <div className="day-group" key={giorno}>
+            <div className="day-header">
+              <span>{dayLabel(giorno)}</span>
+              <span className="day-total">
+                {formatEuro(spesePorGiorno[giorno].reduce((a, s) => a + Number(s.amount), 0))}
+              </span>
+            </div>
+            {spesePorGiorno[giorno].map(s => (
+              <div className="spesa-item" key={s.id}>
+                <div style={{flex:1}}>
+                  <div className="spesa-desc">{s.desc}</div>
+                  <div className="spesa-cat">{s.cat}</div>
+                </div>
+                <div className="spesa-amount">{formatEuro(s.amount)}</div>
+                <button className="spesa-delete" onClick={() => deleteSpesa(s.id)}>🗑</button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* ENTRATE */}
+      <div className="card">
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+          <div className="card-title" style={{marginBottom:0}}>💚 Entrate</div>
+          <button className="btn small" style={{borderColor:'var(--green-border)',color:'var(--green)'}} onClick={() => setShowAddEntrata(v => !v)}>
+            {showAddEntrata ? '✕ Annulla' : '+ Aggiungi'}
+          </button>
+        </div>
+
+        {showAddEntrata && (
+          <div className="add-spesa-form" style={{background:'var(--green-bg)',borderColor:'var(--green-border)'}}>
+            <div className="form-row">
+              <div className="form-group" style={{flex:2}}>
+                <label>Descrizione</label>
+                <input type="text" placeholder="Es. Stipendio" value={formE.desc} onChange={e => setFormE(f => ({...f, desc: e.target.value}))} />
+              </div>
+              <div className="form-group">
+                <label>Importo €</label>
+                <input type="number" placeholder="0.00" value={formE.amount} onChange={e => setFormE(f => ({...f, amount: e.target.value}))} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Data</label>
+                <input type="date" value={formE.date} onChange={e => setFormE(f => ({...f, date: e.target.value}))} />
+              </div>
+            </div>
+            <button className="btn primary" style={{background:'var(--green)',borderColor:'var(--green)'}} onClick={addEntrata}>💾 Salva entrata</button>
+          </div>
+        )}
+
+        {entrateMese.length === 0 && <div className="empty">Nessuna entrata questo mese</div>}
+        {entrateMese.slice().sort((a,b) => b.date.localeCompare(a.date)).map(e => (
+          <div className="entrata-item" key={e.id}>
+            <div style={{flex:1}}>
+              <div className="spesa-desc">{e.desc}</div>
+              <div className="spesa-cat">{e.date}</div>
+            </div>
+            <div className="spesa-amount">{formatEuro(e.amount)}</div>
+            <button className="spesa-delete" onClick={() => deleteEntrata(e.id)}>🗑</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-function updatePracticeBtn() {
-  const checked = document.querySelectorAll('.error-check:checked').length;
-  const btn = document.getElementById('practice-selected-btn');
-  btn.style.display = checked > 0 ? 'block' : 'none';
-  btn.textContent = `▶ Esercitati con i ${checked} selezionati`;
+// ── SCADENZE TAB ───────────────────────────────────────────────────────────────
+function ScadenzeTab({ data, saveData }) {
+  const [show, setShow] = useState(false);
+  const [form, setForm] = useState({ nome: '', amount: '', date: '', ricorrente: false });
+
+  function add() {
+    if (!form.nome || !form.date) return;
+    const s = { id: Date.now(), nome: form.nome, amount: Number(form.amount), date: form.date, ricorrente: form.ricorrente, pagato: false };
+    saveData({ scadenze: [...(data.scadenze || []), s] });
+    setForm({ nome: '', amount: '', date: '', ricorrente: false });
+    setShow(false);
+  }
+  function togglePagato(id) {
+    saveData({ scadenze: (data.scadenze || []).map(s => s.id === id ? {...s, pagato: !s.pagato} : s) });
+  }
+  function del(id) {
+    saveData({ scadenze: (data.scadenze || []).filter(s => s.id !== id) });
+  }
+
+  const sorted = [...(data.scadenze || [])].sort((a, b) => a.date.localeCompare(b.date));
+  const daPagare = sorted.filter(s => !s.pagato);
+  const pagate = sorted.filter(s => s.pagato);
+
+  return (
+    <div className="section active">
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+        <div style={{fontSize:'17px',fontWeight:'700'}}>📅 Scadenze</div>
+        <button className="btn primary small" onClick={() => setShow(v => !v)}>{show ? '✕ Annulla' : '+ Aggiungi'}</button>
+      </div>
+
+      {show && (
+        <div className="card" style={{background:'var(--accent-light)'}}>
+          <div className="form-row">
+            <div className="form-group" style={{flex:2}}>
+              <label>Nome</label>
+              <input type="text" placeholder="Es. Affitto" value={form.nome} onChange={e => setForm(f => ({...f, nome: e.target.value}))} />
+            </div>
+            <div className="form-group">
+              <label>Importo €</label>
+              <input type="number" placeholder="0.00" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Data scadenza</label>
+              <input type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} />
+            </div>
+            <div className="form-group" style={{justifyContent:'flex-end',paddingBottom:'2px'}}>
+              <label style={{display:'flex',alignItems:'center',gap:'6px',cursor:'pointer',marginTop:'auto'}}>
+                <input type="checkbox" checked={form.ricorrente} onChange={e => setForm(f => ({...f, ricorrente: e.target.checked}))} />
+                Ricorrente
+              </label>
+            </div>
+          </div>
+          <button className="btn primary" onClick={add}>💾 Salva</button>
+        </div>
+      )}
+
+      {daPagare.length === 0 && pagate.length === 0 && <div className="empty">Nessuna scadenza</div>}
+
+      {daPagare.map(s => (
+        <div className="scad-item" key={s.id}>
+          <div className={`scad-dot ${scadenzaColor(s.date)}`}></div>
+          <div className="scad-info">
+            <div className="scad-name">{s.nome} {s.ricorrente && <span style={{fontSize:'11px',color:'var(--text3)'}}>🔄</span>}</div>
+            <div className="scad-date">{new Date(...s.date.split('-').map((v,i)=>i===1?v-1:Number(v))).toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'long'})}</div>
+          </div>
+          <div className="scad-amount">{s.amount ? formatEuro(s.amount) : ''}</div>
+          <button className="btn small" style={{borderColor:'var(--green-border)',color:'var(--green)'}} onClick={() => togglePagato(s.id)}>✓ Pagato</button>
+          <button className="btn small danger" onClick={() => del(s.id)}>🗑</button>
+        </div>
+      ))}
+
+      {pagate.length > 0 && (
+        <div style={{marginTop:'16px'}}>
+          <div style={{fontSize:'12px',fontWeight:'700',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'8px'}}>✓ Pagate</div>
+          {pagate.map(s => (
+            <div className="scad-item pagato" key={s.id}>
+              <div className="scad-dot verde"></div>
+              <div className="scad-info">
+                <div className="scad-name">{s.nome}</div>
+                <div className="scad-date">{s.date}</div>
+              </div>
+              <div className="scad-amount">{s.amount ? formatEuro(s.amount) : ''}</div>
+              <button className="btn small" onClick={() => togglePagato(s.id)}>↩️ Riapri</button>
+              <button className="btn small danger" onClick={() => del(s.id)}>🗑</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function toggleSelectAll(checked) {
-  document.querySelectorAll('.error-check').forEach(cb => cb.checked = checked);
-  updatePracticeBtn();
+// ── SPESA TAB ──────────────────────────────────────────────────────────────────
+function SpesaTab({ data, saveData }) {
+  const [show, setShow] = useState(false);
+  const [form, setForm] = useState({ nome: '', cat: '', qta: '1' });
+
+  function add() {
+    if (!form.nome) return;
+    const item = { id: Date.now(), nome: form.nome, cat: form.cat || 'Altro', qta: form.qta || '1', checked: false };
+    saveData({ listaSpesa: [...(data.listaSpesa || []), item] });
+    setForm({ nome: '', cat: '', qta: '1' });
+  }
+  function toggle(id) {
+    saveData({ listaSpesa: (data.listaSpesa || []).map(i => i.id === id ? {...i, checked: !i.checked} : i) });
+  }
+  function del(id) {
+    saveData({ listaSpesa: (data.listaSpesa || []).filter(i => i.id !== id) });
+  }
+  function clearChecked() {
+    saveData({ listaSpesa: (data.listaSpesa || []).filter(i => !i.checked) });
+  }
+
+  const lista = data.listaSpesa || [];
+  const daPrendere = lista.filter(i => !i.checked);
+  const presi = lista.filter(i => i.checked);
+
+  // Raggruppa per categoria
+  const bycat = {};
+  for (const item of daPrendere) {
+    if (!bycat[item.cat]) bycat[item.cat] = [];
+    bycat[item.cat].push(item);
+  }
+
+  return (
+    <div className="section active">
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
+        <div style={{fontSize:'17px',fontWeight:'700'}}>🛒 Lista della spesa</div>
+        <div style={{display:'flex',gap:'6px'}}>
+          {presi.length > 0 && <button className="btn small danger" onClick={clearChecked}>🗑 Rimuovi presi</button>}
+          <button className="btn primary small" onClick={() => setShow(v => !v)}>{show ? '✕' : '+ Aggiungi'}</button>
+        </div>
+      </div>
+
+      {show && (
+        <div className="card" style={{background:'var(--accent-light)'}}>
+          <div className="form-row">
+            <div className="form-group" style={{flex:2}}>
+              <label>Prodotto</label>
+              <input type="text" placeholder="Es. Latte" value={form.nome}
+                onChange={e => setForm(f => ({...f, nome: e.target.value}))}
+                onKeyDown={e => e.key === 'Enter' && add()} />
+            </div>
+            <div className="form-group" style={{maxWidth:'70px'}}>
+              <label>Qtà</label>
+              <input type="text" value={form.qta} onChange={e => setForm(f => ({...f, qta: e.target.value}))} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Categoria</label>
+              <select value={form.cat} onChange={e => setForm(f => ({...f, cat: e.target.value}))}>
+                <option value="">Seleziona...</option>
+                {(data.categorieLista || DEFAULT_SPESA_CATS).map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <button className="btn primary" onClick={add}>➕ Aggiungi</button>
+        </div>
+      )}
+
+      {lista.length === 0 && <div className="empty">Lista vuota — aggiungi qualcosa!</div>}
+
+      {Object.entries(bycat).map(([cat, items]) => (
+        <div key={cat} style={{marginBottom:'14px'}}>
+          <div style={{fontSize:'12px',fontWeight:'700',color:'var(--accent)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'6px',paddingLeft:'4px'}}>{cat}</div>
+          {items.map(item => (
+            <div className={`spesa-lista-item${item.checked?' checked':''}`} key={item.id}>
+              <input type="checkbox" checked={item.checked} onChange={() => toggle(item.id)} />
+              <span style={{flex:1}}>{item.nome}</span>
+              <span style={{color:'var(--text3)',fontSize:'13px'}}>{item.qta !== '1' ? `× ${item.qta}` : ''}</span>
+              <button className="spesa-delete" onClick={() => del(item.id)}>✕</button>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {presi.length > 0 && (
+        <div style={{marginTop:'8px'}}>
+          <div style={{fontSize:'12px',fontWeight:'700',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'6px'}}>✓ Già presi</div>
+          {presi.map(item => (
+            <div className="spesa-lista-item checked" key={item.id}>
+              <input type="checkbox" checked={true} onChange={() => toggle(item.id)} />
+              <span style={{flex:1}}>{item.nome}</span>
+              <button className="spesa-delete" onClick={() => del(item.id)}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function practiceSelected() {
-  const keys = [...document.querySelectorAll('.error-check:checked')].map(cb => cb.dataset.key);
-  const selected = errorLog.filter(e => keys.includes(e.key));
-  if (selected.length === 0) return;
-  // Build a mini deck from selected errors
-  deck = selected.map(e => ({it: e.it, base: e.base, past: e.past, part: e.part, type: e.type}));
-  deck = shuffle(deck);
-  currentIdx = 0; answered = false;
-  // Switch to quiz tab
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('sec-quiz').classList.add('active');
-  document.querySelectorAll('.tab-btn')[0].classList.add('active');
-  showWord();
+// ── REPORT TAB ─────────────────────────────────────────────────────────────────
+function ReportTab({ data }) {
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
+
+  const speseMese = (data.spese || []).filter(s => {
+    const [sy, sm] = s.date.split('-').map(Number);
+    return sy === year && sm === month;
+  });
+  const totale = speseMese.reduce((a, s) => a + Number(s.amount), 0);
+
+  const byCat = {};
+  for (const s of speseMese) {
+    byCat[s.cat] = (byCat[s.cat] || 0) + Number(s.amount);
+  }
+  const catSort = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+
+  function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); }
+  function nextMonth() { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); }
+
+  return (
+    <div className="section active">
+      <div className="budget-header">
+        <div className="month-nav">
+          <button onClick={prevMonth}>‹</button>
+          <div className="month-label">{monthLabel(year, month)}</div>
+          <button onClick={nextMonth}>›</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">📊 Spese per categoria</div>
+        {catSort.length === 0 && <div className="empty">Nessuna spesa questo mese</div>}
+        {catSort.map(([cat, amt]) => (
+          <div className="report-cat-bar" key={cat}>
+            <div className="report-cat-label">
+              <span>{cat}</span>
+              <span>{formatEuro(amt)} <span style={{color:'var(--text3)',fontSize:'12px'}}>({totale ? Math.round(amt/totale*100) : 0}%)</span></span>
+            </div>
+            <div className="bar-bg">
+              <div className="bar-fill" style={{width: totale ? `${amt/totale*100}%` : '0%'}}></div>
+            </div>
+          </div>
+        ))}
+        {totale > 0 && (
+          <div style={{marginTop:'14px',paddingTop:'12px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',fontWeight:'700'}}>
+            <span>Totale</span><span style={{color:'var(--red)'}}>{formatEuro(totale)}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function resetErrors() {
-  if (!confirm('Eliminare tutti gli errori salvati?')) return;
-  errorLog = [];
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
-  updateErrCount();
-  renderErrors();
-}
-function updateNavScore() {
-  document.getElementById('nav-ok').textContent = stats.ok;
-  document.getElementById('nav-ko').textContent = stats.ko;
-  document.getElementById('nav-skip').textContent = errorLog.filter(e => e.skipped).length;
-  document.getElementById('st-ok').textContent = stats.ok;
-  document.getElementById('st-ko').textContent = stats.ok + stats.ko > 0 ? stats.ko : 0;
-  const tot = stats.ok+stats.ko;
-  document.getElementById('st-tot').textContent = tot;
-  document.getElementById('st-pct').textContent = tot ? Math.round(stats.ok/tot*100)+'%' : '—';
-}
-function resetStats() {
-  if(!confirm('Azzerare le statistiche?')) return;
-  stats={ok:0,ko:0}; saveStats(); updateNavScore();
-}
-function showSection(name, btn) {
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('sec-'+name).classList.add('active');
-  btn.classList.add('active');
-  if(name==='vocab') renderVocabTable();
-  if(name==='errors') renderErrors();
+// ── IMPOSTAZIONI TAB ───────────────────────────────────────────────────────────
+function ImpostazioniTab({ data, saveData }) {
+  const [newCat, setNewCat] = useState('');
+  const [newCatLista, setNewCatLista] = useState('');
+
+  function addCat() {
+    if (!newCat.trim()) return;
+    saveData({ categorie: [...(data.categorie || DEFAULT_CATS), newCat.trim()] });
+    setNewCat('');
+  }
+  function delCat(c) {
+    saveData({ categorie: (data.categorie || DEFAULT_CATS).filter(x => x !== c) });
+  }
+  function addCatLista() {
+    if (!newCatLista.trim()) return;
+    saveData({ categorieLista: [...(data.categorieLista || DEFAULT_SPESA_CATS), newCatLista.trim()] });
+    setNewCatLista('');
+  }
+  function delCatLista(c) {
+    saveData({ categorieLista: (data.categorieLista || DEFAULT_SPESA_CATS).filter(x => x !== c) });
+  }
+
+  return (
+    <div className="section active">
+      <div className="card">
+        <div className="setting-section">
+          <div className="setting-label">Categorie spese</div>
+          <div>{(data.categorie || DEFAULT_CATS).map(c => (
+            <span className="cat-chip" key={c}>{c}<button onClick={() => delCat(c)}>✕</button></span>
+          ))}</div>
+          <div className="form-row" style={{marginTop:'10px'}}>
+            <input type="text" placeholder="Nuova categoria..." value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCat()} style={{flex:1}} />
+            <button className="btn primary" onClick={addCat}>Aggiungi</button>
+          </div>
+        </div>
+
+        <div className="setting-section" style={{marginTop:'20px'}}>
+          <div className="setting-label">Categorie lista spesa</div>
+          <div>{(data.categorieLista || DEFAULT_SPESA_CATS).map(c => (
+            <span className="cat-chip" key={c}>{c}<button onClick={() => delCatLista(c)}>✕</button></span>
+          ))}</div>
+          <div className="form-row" style={{marginTop:'10px'}}>
+            <input type="text" placeholder="Nuova categoria..." value={newCatLista} onChange={e => setNewCatLista(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCatLista()} style={{flex:1}} />
+            <button className="btn primary" onClick={addCatLista}>Aggiungi</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{marginTop:'8px'}}>
+        <div className="setting-label" style={{marginBottom:'8px'}}>ℹ️ Informazioni</div>
+        <div style={{fontSize:'13px',color:'var(--text2)',lineHeight:'1.6'}}>
+          <p>I dati sono sincronizzati automaticamente via Firebase.</p>
+          <p style={{marginTop:'6px'}}>Repository: <code style={{background:'var(--surface2)',padding:'1px 6px',borderRadius:'4px'}}>giorgiolucciola-lang/fcc</code></p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-// Init
-window.speechSynthesis.onvoiceschanged = () => {};
-updateNavScore();
-updateErrCount();
-resetQuiz();
-loadFromSheet();
+// ── RENDER ─────────────────────────────────────────────────────────────────────
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/fcc/sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
