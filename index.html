@@ -569,7 +569,7 @@ function BudgetTab({ data, saveData }) {
                   <option value="">Seleziona...</option>
                   {(data.categorie || DEFAULT_CATS).map(c => <option key={c}>{c}</option>)}
                 </select>
-                {!showNewCat && <button type="button" onClick={() => setShowNewCat(true)} style={{fontSize:'11px',color:'var(--accent)',background:'none',border:'none',cursor:'pointer',marginTop:'4px',padding:'0'}}>+ Nuova categoria</button>}
+                {!showNewCat && <button type="button" onClick={() => setShowNewCat(true)} className="btn small" style={{marginTop:'6px',borderColor:'var(--accent)',color:'var(--accent)'}}>+ Nuova categoria</button>}
                 {showNewCat && <div style={{display:'flex',gap:'4px',marginTop:'4px'}}>
                   <input type="text" placeholder="Nome categoria" value={newCatInline} onChange={e => setNewCatInline(e.target.value)} onKeyDown={e => e.key==='Enter' && addCatInline()} style={{fontSize:'13px',padding:'4px 8px'}} />
                   <button type="button" className="btn primary small" onClick={addCatInline}>✓</button>
@@ -589,7 +589,7 @@ function BudgetTab({ data, saveData }) {
                     <option value="">Nessuna</option>
                     {((data.sottocategorie || {})[form.cat] || []).map(s => <option key={s}>{s}</option>)}
                   </select>
-                  {!showNewSubcat && <button type="button" onClick={() => setShowNewSubcat(true)} style={{fontSize:'11px',color:'var(--accent)',background:'none',border:'none',cursor:'pointer',marginTop:'4px',padding:'0'}}>+ Nuova sottocategoria</button>}
+                  {!showNewSubcat && <button type="button" onClick={() => setShowNewSubcat(true)} className="btn small" style={{marginTop:'6px',borderColor:'var(--accent)',color:'var(--accent)'}}>+ Nuova sottocategoria</button>}
                   {showNewSubcat && <div style={{display:'flex',gap:'4px',marginTop:'4px'}}>
                     <input type="text" placeholder="Nome sottocategoria" value={newSubcatInline} onChange={e => setNewSubcatInline(e.target.value)} onKeyDown={e => e.key==='Enter' && addSubcatInline()} style={{fontSize:'13px',padding:'4px 8px'}} />
                     <button type="button" className="btn primary small" onClick={addSubcatInline}>✓</button>
