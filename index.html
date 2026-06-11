@@ -433,8 +433,32 @@ function BudgetTab({ data, saveData }) {
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [showAddSpesa, setShowAddSpesa] = useState(false);
   const [showAddEntrata, setShowAddEntrata] = useState(false);
-  const [form, setForm] = useState({ desc: '', amount: '', cat: '', date: localDateStr() });
+  const [form, setForm] = useState({ desc: '', amount: '', cat: '', subcat: '', date: localDateStr() });
   const [formE, setFormE] = useState({ desc: '', amount: '', date: localDateStr() });
+  const [newCatInline, setNewCatInline] = useState('');
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [newSubcatInline, setNewSubcatInline] = useState('');
+  const [showNewSubcat, setShowNewSubcat] = useState(false);
+
+  function addCatInline() {
+    if (!newCatInline.trim()) return;
+    const cats = [...(data.categorie || DEFAULT_CATS), newCatInline.trim()];
+    saveData({ categorie: cats });
+    setForm(f => ({ ...f, cat: newCatInline.trim() }));
+    setNewCatInline('');
+    setShowNewCat(false);
+  }
+
+  function addSubcatInline() {
+    if (!newSubcatInline.trim() || !form.cat) return;
+    const subcats = { ...(data.sottocategorie || {}) };
+    if (!subcats[form.cat]) subcats[form.cat] = [];
+    subcats[form.cat] = [...subcats[form.cat], newSubcatInline.trim()];
+    saveData({ sottocategorie: subcats });
+    setForm(f => ({ ...f, subcat: newSubcatInline.trim() }));
+    setNewSubcatInline('');
+    setShowNewSubcat(false);
+  }
 
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear(y => y - 1); }
@@ -473,9 +497,9 @@ function BudgetTab({ data, saveData }) {
 
   function addSpesa() {
     if (!form.desc || !form.amount) return;
-    const s = { id: Date.now(), desc: form.desc, amount: Number(form.amount), cat: form.cat || 'Altro', date: form.date };
+    const s = { id: Date.now(), desc: form.desc, amount: Number(form.amount), cat: form.cat || 'Altro', subcat: form.subcat || '', date: form.date };
     saveData({ spese: [...(data.spese || []), s] });
-    setForm({ desc: '', amount: '', cat: '', date: localDateStr() });
+    setForm({ desc: '', amount: '', cat: '', subcat: '', date: localDateStr() });
     setShowAddSpesa(false);
   }
   function deleteSpesa(id) {
@@ -541,16 +565,39 @@ function BudgetTab({ data, saveData }) {
             <div className="form-row">
               <div className="form-group">
                 <label>Categoria</label>
-                <select value={form.cat} onChange={e => setForm(f => ({...f, cat: e.target.value}))}>
+                <select value={form.cat} onChange={e => { setForm(f => ({...f, cat: e.target.value, subcat: ''})); setShowNewCat(false); }}>
                   <option value="">Seleziona...</option>
                   {(data.categorie || DEFAULT_CATS).map(c => <option key={c}>{c}</option>)}
                 </select>
+                {!showNewCat && <button type="button" onClick={() => setShowNewCat(true)} style={{fontSize:'11px',color:'var(--accent)',background:'none',border:'none',cursor:'pointer',marginTop:'4px',padding:'0'}}>+ Nuova categoria</button>}
+                {showNewCat && <div style={{display:'flex',gap:'4px',marginTop:'4px'}}>
+                  <input type="text" placeholder="Nome categoria" value={newCatInline} onChange={e => setNewCatInline(e.target.value)} onKeyDown={e => e.key==='Enter' && addCatInline()} style={{fontSize:'13px',padding:'4px 8px'}} />
+                  <button type="button" className="btn primary small" onClick={addCatInline}>✓</button>
+                  <button type="button" className="btn small" onClick={() => setShowNewCat(false)}>✕</button>
+                </div>}
               </div>
               <div className="form-group">
                 <label>Data</label>
                 <input type="date" value={form.date} onChange={e => setForm(f => ({...f, date: e.target.value}))} />
               </div>
             </div>
+            {form.cat && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Sottocategoria <span style={{fontWeight:'400',color:'var(--text3)'}}>(opzionale)</span></label>
+                  <select value={form.subcat} onChange={e => setForm(f => ({...f, subcat: e.target.value}))}>
+                    <option value="">Nessuna</option>
+                    {((data.sottocategorie || {})[form.cat] || []).map(s => <option key={s}>{s}</option>)}
+                  </select>
+                  {!showNewSubcat && <button type="button" onClick={() => setShowNewSubcat(true)} style={{fontSize:'11px',color:'var(--accent)',background:'none',border:'none',cursor:'pointer',marginTop:'4px',padding:'0'}}>+ Nuova sottocategoria</button>}
+                  {showNewSubcat && <div style={{display:'flex',gap:'4px',marginTop:'4px'}}>
+                    <input type="text" placeholder="Nome sottocategoria" value={newSubcatInline} onChange={e => setNewSubcatInline(e.target.value)} onKeyDown={e => e.key==='Enter' && addSubcatInline()} style={{fontSize:'13px',padding:'4px 8px'}} />
+                    <button type="button" className="btn primary small" onClick={addSubcatInline}>✓</button>
+                    <button type="button" className="btn small" onClick={() => setShowNewSubcat(false)}>✕</button>
+                  </div>}
+                </div>
+              </div>
+            )}
             <button className="btn primary" onClick={addSpesa}>💾 Salva spesa</button>
           </div>
         )}
@@ -569,7 +616,7 @@ function BudgetTab({ data, saveData }) {
               <div className="spesa-item" key={s.id}>
                 <div style={{flex:1}}>
                   <div className="spesa-desc">{s.desc}</div>
-                  <div className="spesa-cat">{s.cat}</div>
+                  <div className="spesa-cat">{s.cat}{s.subcat ? ` › ${s.subcat}` : ''}</div>
                 </div>
                 <div className="spesa-amount">{formatEuro(s.amount)}</div>
                 <button className="spesa-delete" onClick={() => deleteSpesa(s.id)}>🗑</button>
