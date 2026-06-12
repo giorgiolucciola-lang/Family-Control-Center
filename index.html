@@ -496,7 +496,7 @@ function BudgetTab({ data, saveData }) {
   }
 
   function addSpesa() {
-    if (!form.desc || !form.amount) return;
+    if (!form.desc || form.amount === '' || form.amount === null) return;
     const s = { id: Date.now(), desc: form.desc, amount: Number(form.amount), cat: form.cat || 'Altro', subcat: form.subcat || '', date: form.date };
     saveData({ spese: [...(data.spese || []), s] });
     setForm({ desc: '', amount: '', cat: '', subcat: '', date: localDateStr() });
@@ -662,7 +662,7 @@ function BudgetTab({ data, saveData }) {
           <div className="entrata-item" key={e.id}>
             <div style={{flex:1}}>
               <div className="spesa-desc">{e.desc}</div>
-              <div className="spesa-cat">{e.date}</div>
+              <div className="spesa-cat">{dayLabel(e.date)}</div>
             </div>
             <div className="spesa-amount">{formatEuro(e.amount)}</div>
             <button className="spesa-delete" onClick={() => deleteEntrata(e.id)}>🗑</button>
@@ -927,6 +927,10 @@ function ReportTab({ data }) {
 function ImpostazioniTab({ data, saveData }) {
   const [newCat, setNewCat] = useState('');
   const [newCatLista, setNewCatLista] = useState('');
+  const [editingCat, setEditingCat] = useState(null); // {type:'spese'|'lista', idx, val}
+  const [expandedSubcat, setExpandedSubcat] = useState(null); // category name showing subcats
+  const [newSubcat, setNewSubcat] = useState('');
+  const [editingSubcat, setEditingSubcat] = useState(null); // {cat, idx, val}
 
   function addCat() {
     if (!newCat.trim()) return;
@@ -936,6 +940,23 @@ function ImpostazioniTab({ data, saveData }) {
   function delCat(c) {
     saveData({ categorie: (data.categorie || DEFAULT_CATS).filter(x => x !== c) });
   }
+  function renameCat(oldName, newName) {
+    if (!newName.trim() || newName === oldName) { setEditingCat(null); return; }
+    const cats = (data.categorie || DEFAULT_CATS).map(x => x === oldName ? newName.trim() : x);
+    // rename in subcategorie keys too
+    const sub = { ...(data.sottocategorie || {}) };
+    if (sub[oldName]) { sub[newName.trim()] = sub[oldName]; delete sub[oldName]; }
+    saveData({ categorie: cats, sottocategorie: sub });
+    setEditingCat(null);
+  }
+  function moveCat(idx, dir) {
+    const cats = [...(data.categorie || DEFAULT_CATS)];
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= cats.length) return;
+    [cats[idx], cats[newIdx]] = [cats[newIdx], cats[idx]];
+    saveData({ categorie: cats });
+  }
+
   function addCatLista() {
     if (!newCatLista.trim()) return;
     saveData({ categorieLista: [...(data.categorieLista || DEFAULT_SPESA_CATS), newCatLista.trim()] });
@@ -944,15 +965,103 @@ function ImpostazioniTab({ data, saveData }) {
   function delCatLista(c) {
     saveData({ categorieLista: (data.categorieLista || DEFAULT_SPESA_CATS).filter(x => x !== c) });
   }
+  function renameCatLista(oldName, newName) {
+    if (!newName.trim() || newName === oldName) { setEditingCat(null); return; }
+    const cats = (data.categorieLista || DEFAULT_SPESA_CATS).map(x => x === oldName ? newName.trim() : x);
+    saveData({ categorieLista: cats });
+    setEditingCat(null);
+  }
+  function moveCatLista(idx, dir) {
+    const cats = [...(data.categorieLista || DEFAULT_SPESA_CATS)];
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= cats.length) return;
+    [cats[idx], cats[newIdx]] = [cats[newIdx], cats[idx]];
+    saveData({ categorieLista: cats });
+  }
+
+  // Subcategorie
+  function addSubcat(catName) {
+    if (!newSubcat.trim()) return;
+    const sub = { ...(data.sottocategorie || {}) };
+    sub[catName] = [...(sub[catName] || []), newSubcat.trim()];
+    saveData({ sottocategorie: sub });
+    setNewSubcat('');
+  }
+  function delSubcat(catName, s) {
+    const sub = { ...(data.sottocategorie || {}) };
+    sub[catName] = (sub[catName] || []).filter(x => x !== s);
+    saveData({ sottocategorie: sub });
+  }
+  function renameSubcat(catName, oldS, newS) {
+    if (!newS.trim() || newS === oldS) { setEditingSubcat(null); return; }
+    const sub = { ...(data.sottocategorie || {}) };
+    sub[catName] = (sub[catName] || []).map(x => x === oldS ? newS.trim() : x);
+    saveData({ sottocategorie: sub });
+    setEditingSubcat(null);
+  }
+  function moveSubcat(catName, idx, dir) {
+    const sub = { ...(data.sottocategorie || {}) };
+    const arr = [...(sub[catName] || [])];
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    sub[catName] = arr;
+    saveData({ sottocategorie: sub });
+  }
+
+  const cats = data.categorie || DEFAULT_CATS;
+  const catsLista = data.categorieLista || DEFAULT_SPESA_CATS;
 
   return (
     <div className="section active">
       <div className="card">
         <div className="setting-section">
           <div className="setting-label">Categorie spese</div>
-          <div>{(data.categorie || DEFAULT_CATS).map(c => (
-            <span className="cat-chip" key={c}>{c}<button onClick={() => delCat(c)}>✕</button></span>
-          ))}</div>
+          {cats.map((c, idx) => (
+            <div key={c} style={{marginBottom:'6px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'6px',background:'var(--surface2)',border:'1px solid var(--border2)',borderRadius:'8px',padding:'6px 10px'}}>
+                {editingCat?.type === 'spese' && editingCat?.val === c ? (
+                  <input autoFocus type="text" defaultValue={c} style={{flex:1,fontSize:'14px',padding:'2px 6px',border:'1px solid var(--accent)',borderRadius:'4px'}}
+                    onKeyDown={e => { if (e.key === 'Enter') renameSubcat; if (e.key==='Escape') setEditingCat(null); }}
+                    onBlur={e => renameCat(c, e.target.value)} />
+                ) : (
+                  <span style={{flex:1,fontSize:'14px',fontWeight:'500'}}>{c}</span>
+                )}
+                <button title="Rinomina" style={{background:'none',border:'none',cursor:'pointer',fontSize:'14px',color:'var(--text3)',padding:'2px 4px'}} onClick={() => setEditingCat({type:'spese',val:c})}>✏️</button>
+                <button title="Sottocategorie" style={{background:'none',border:'none',cursor:'pointer',fontSize:'13px',color:'var(--accent)',padding:'2px 4px'}} onClick={() => setExpandedSubcat(expandedSubcat === c ? null : c)}>
+                  {expandedSubcat === c ? '▾ sub' : '▸ sub'}
+                </button>
+                <button disabled={idx===0} style={{background:'none',border:'none',cursor:idx===0?'default':'pointer',opacity:idx===0?0.3:1,fontSize:'13px',padding:'2px 3px'}} onClick={() => moveCat(idx,-1)}>▲</button>
+                <button disabled={idx===cats.length-1} style={{background:'none',border:'none',cursor:idx===cats.length-1?'default':'pointer',opacity:idx===cats.length-1?0.3:1,fontSize:'13px',padding:'2px 3px'}} onClick={() => moveCat(idx,1)}>▼</button>
+                <button title="Elimina" style={{background:'none',border:'none',cursor:'pointer',fontSize:'14px',color:'var(--red)',padding:'2px 4px'}} onClick={() => delCat(c)}>✕</button>
+              </div>
+              {expandedSubcat === c && (
+                <div style={{marginLeft:'16px',marginTop:'4px',padding:'8px',background:'var(--accent-light)',borderRadius:'8px',border:'1px solid var(--border)'}}>
+                  <div style={{fontSize:'11px',fontWeight:'700',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'6px'}}>Sottocategorie di {c}</div>
+                  {((data.sottocategorie || {})[c] || []).length === 0 && <div style={{fontSize:'12px',color:'var(--text3)',marginBottom:'6px'}}>Nessuna sottocategoria</div>}
+                  {((data.sottocategorie || {})[c] || []).map((s, si) => (
+                    <div key={s} style={{display:'flex',alignItems:'center',gap:'4px',marginBottom:'4px',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:'6px',padding:'4px 8px'}}>
+                      {editingSubcat?.cat === c && editingSubcat?.idx === si ? (
+                        <input autoFocus type="text" defaultValue={s} style={{flex:1,fontSize:'13px',padding:'2px 4px',border:'1px solid var(--accent)',borderRadius:'4px'}}
+                          onKeyDown={e => { if (e.key==='Escape') setEditingSubcat(null); }}
+                          onBlur={e => renameSubcat(c, s, e.target.value)} />
+                      ) : (
+                        <span style={{flex:1,fontSize:'13px'}}>{s}</span>
+                      )}
+                      <button style={{background:'none',border:'none',cursor:'pointer',fontSize:'12px',color:'var(--text3)',padding:'1px 3px'}} onClick={() => setEditingSubcat({cat:c,idx:si})}>✏️</button>
+                      <button disabled={si===0} style={{background:'none',border:'none',cursor:si===0?'default':'pointer',opacity:si===0?0.3:1,fontSize:'11px',padding:'1px 2px'}} onClick={() => moveSubcat(c,si,-1)}>▲</button>
+                      <button disabled={si===(data.sottocategorie||{})[c].length-1} style={{background:'none',border:'none',cursor:'pointer',opacity:si===(data.sottocategorie||{})[c].length-1?0.3:1,fontSize:'11px',padding:'1px 2px'}} onClick={() => moveSubcat(c,si,1)}>▼</button>
+                      <button style={{background:'none',border:'none',cursor:'pointer',fontSize:'12px',color:'var(--red)',padding:'1px 3px'}} onClick={() => delSubcat(c, s)}>✕</button>
+                    </div>
+                  ))}
+                  <div style={{display:'flex',gap:'4px',marginTop:'6px'}}>
+                    <input type="text" placeholder="Nuova sottocategoria..." value={newSubcat} onChange={e => setNewSubcat(e.target.value)} onKeyDown={e => e.key==='Enter' && addSubcat(c)} style={{flex:1,fontSize:'13px',padding:'5px 8px'}} />
+                    <button className="btn primary small" onClick={() => addSubcat(c)}>+</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
           <div className="form-row" style={{marginTop:'10px'}}>
             <input type="text" placeholder="Nuova categoria..." value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCat()} style={{flex:1}} />
             <button className="btn primary" onClick={addCat}>Aggiungi</button>
@@ -961,9 +1070,21 @@ function ImpostazioniTab({ data, saveData }) {
 
         <div className="setting-section" style={{marginTop:'20px'}}>
           <div className="setting-label">Categorie lista spesa</div>
-          <div>{(data.categorieLista || DEFAULT_SPESA_CATS).map(c => (
-            <span className="cat-chip" key={c}>{c}<button onClick={() => delCatLista(c)}>✕</button></span>
-          ))}</div>
+          {catsLista.map((c, idx) => (
+            <div key={c} style={{display:'flex',alignItems:'center',gap:'6px',background:'var(--surface2)',border:'1px solid var(--border2)',borderRadius:'8px',padding:'6px 10px',marginBottom:'6px'}}>
+              {editingCat?.type === 'lista' && editingCat?.val === c ? (
+                <input autoFocus type="text" defaultValue={c} style={{flex:1,fontSize:'14px',padding:'2px 6px',border:'1px solid var(--accent)',borderRadius:'4px'}}
+                  onKeyDown={e => { if (e.key==='Escape') setEditingCat(null); }}
+                  onBlur={e => renameCatLista(c, e.target.value)} />
+              ) : (
+                <span style={{flex:1,fontSize:'14px',fontWeight:'500'}}>{c}</span>
+              )}
+              <button title="Rinomina" style={{background:'none',border:'none',cursor:'pointer',fontSize:'14px',color:'var(--text3)',padding:'2px 4px'}} onClick={() => setEditingCat({type:'lista',val:c})}>✏️</button>
+              <button disabled={idx===0} style={{background:'none',border:'none',cursor:idx===0?'default':'pointer',opacity:idx===0?0.3:1,fontSize:'13px',padding:'2px 3px'}} onClick={() => moveCatLista(idx,-1)}>▲</button>
+              <button disabled={idx===catsLista.length-1} style={{background:'none',border:'none',cursor:idx===catsLista.length-1?'default':'pointer',opacity:idx===catsLista.length-1?0.3:1,fontSize:'13px',padding:'2px 3px'}} onClick={() => moveCatLista(idx,1)}>▼</button>
+              <button title="Elimina" style={{background:'none',border:'none',cursor:'pointer',fontSize:'14px',color:'var(--red)',padding:'2px 4px'}} onClick={() => delCatLista(c)}>✕</button>
+            </div>
+          ))}
           <div className="form-row" style={{marginTop:'10px'}}>
             <input type="text" placeholder="Nuova categoria..." value={newCatLista} onChange={e => setNewCatLista(e.target.value)} onKeyDown={e => e.key === 'Enter' && addCatLista()} style={{flex:1}} />
             <button className="btn primary" onClick={addCatLista}>Aggiungi</button>
